@@ -646,9 +646,39 @@ public class JavaDocSettingsPanel {
             return;
         }
 
-        // 使用枚举中的默认配置
-        baseUrlField.setText(providerType.getDefaultBaseUrl());
-        modelComboBox.setSelectedItem(providerType.getDefaultModel());
+        // 优先使用已保存的配置，如果没有则使用默认配置
+        SettingsState savedSettings = SettingsState.getInstance();
+        SettingsState.ProviderConfig savedConfig = findSavedProviderConfig(providerId);
+
+        if (savedConfig != null) {
+            // 使用已保存的配置
+            baseUrlField.setText(savedConfig.baseUrl);
+            modelComboBox.setSelectedItem(savedConfig.modelName);
+            apiKeyField.setText(savedConfig.apiKey);
+        } else {
+            // 使用枚举中的默认配置
+            baseUrlField.setText(providerType.getDefaultBaseUrl());
+            modelComboBox.setSelectedItem(providerType.getDefaultModel());
+            apiKeyField.setText(""); // API Key 默认为空
+        }
+    }
+
+    /**
+     * 查找已保存的提供商配置
+     *
+     * @param providerId 提供商ID
+     * @return 已保存的配置，如果没有找到则返回null
+     */
+    private SettingsState.ProviderConfig findSavedProviderConfig(String providerId) {
+        SettingsState settings = SettingsState.getInstance();
+        // 优先查找已验证的配置，如果没有则查找所有配置（包括未验证的）
+        return settings.getAvailableProviders().stream()
+            .filter(config -> providerId.equals(config.providerId))
+            .findFirst()
+            .orElse(settings.availableProviders.stream()
+                        .filter(config -> providerId.equals(config.providerId))
+                        .findFirst()
+                        .orElse(null));
     }
 
     private void updateApiKeyVisibility() {
