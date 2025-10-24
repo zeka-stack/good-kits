@@ -333,8 +333,12 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      *   "model": "模型名称",
      *   "messages": [
      *     {
+     *       "role": "system",
+     *       "content": "系统角色设定"
+     *     },
+     *     {
      *       "role": "user",
-     *       "content": "提示词内容"
+     *       "content": "用户请求内容"
      *     }
      *   ],
      *   "temperature": 0.1,
@@ -347,17 +351,62 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      * @see org.json.JSONObject
      */
     protected JSONObject buildRequestBody(String prompt) {
-        JSONObject messages = new JSONObject();
-        messages.put("role", "user");
-        messages.put("content", prompt);
+        // 创建 system 消息
+        JSONObject systemMessage = new JSONObject();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", getSystemPrompt());
+
+        // 创建 user 消息
+        JSONObject userMessage = new JSONObject();
+        userMessage.put("role", "user");
+        userMessage.put("content", prompt);
 
         JSONObject body = new JSONObject();
         body.put("model", settings.modelName);
-        body.put("messages", new Object[] {messages});
+        // 关闭所有模型的 think 模式, 但有些接口还是会返回 think 数据, 所以需要对响应结果进行处理
+        body.put("think", false);
+        // 关闭流式输出
+        body.put("stream", false);
+        body.put("messages", new Object[] {systemMessage, userMessage});
         body.put("temperature", settings.temperature);
         body.put("max_tokens", settings.maxTokens);
 
         return body;
+    }
+
+    /**
+     * 获取系统提示词
+     *
+     * <p>返回用于设定 AI 角色和行为准则的系统提示词。
+     * 这个提示词会作为 system 消息发送给 AI 服务，
+     * 用于建立 AI 的基本角色和响应风格。
+     *
+     * <p>系统提示词的作用：
+     * <ul>
+     *   <li>设定 AI 的专业角色（Java 开发工程师）</li>
+     *   <li>建立响应格式要求（中文 JavaDoc）</li>
+     *   <li>定义输出规范（只返回注释，不返回代码）</li>
+     *   <li>确保一致性和专业性</li>
+     * </ul>
+     *
+     * <p>提示词来源：
+     * <ul>
+     *   <li>优先使用用户自定义的系统提示词</li>
+     *   <li>如果用户没有配置或配置为空，使用默认模板</li>
+     *   <li>确保系统提示词始终有效</li>
+     * </ul>
+     *
+     * @return 系统提示词内容
+     */
+    protected String getSystemPrompt() {
+        String userSystemPrompt = settings.systemPromptTemplate;
+
+        // 如果用户没有配置或配置为空，使用默认模板
+        if (userSystemPrompt == null || userSystemPrompt.trim().isEmpty()) {
+            return SettingsState.getDefaultSystemPromptTemplate();
+        }
+
+        return userSystemPrompt;
     }
 
     /**
@@ -380,6 +429,13 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      * }
      * </pre>
      *
+     * <p>特殊处理：
+     * <ul>
+     *   <li>过滤掉思考数据：移除 <think>...</think> 包裹的内容</li>
+     *   <li>只保留 </think> 之后的实际内容</li>
+     *   <li>确保返回的内容是纯净的 JavaDoc 注释</li>
+     * </ul>
+     *
      * <p>异常处理：
      * <ul>
      *   <li>JSON 解析失败：记录错误日志并抛出 INVALID_RESPONSE 异常</li>
@@ -387,17 +443,20 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      * </ul>
      *
      * @param responseBody 原始响应体字符串
-     * @return 解析出的文本内容
+     * @return 解析出的文本内容，已过滤思考数据
      * @throws AIServiceException 当解析失败时抛出 INVALID_RESPONSE 类型异常
      */
     protected String parseResponse(String responseBody) throws AIServiceException {
         try {
             JSONObject json = new JSONObject(responseBody);
-            return json.getJSONArray("choices")
+            String content = json.getJSONArray("choices")
                 .getJSONObject(0)
                 .getJSONObject("message")
                 .getString("content")
                 .trim();
+
+            // 过滤思考数据，只保留实际内容
+            return filterThinkingContent(content);
         } catch (Exception e) {
             LOG.info("Failed to parse AI response: " + responseBody, e);
             throw new AIServiceException("Failed to parse response",
@@ -406,22 +465,71 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
     }
 
     /**
-     * 构建提示词
+     * 过滤思考内容
      *
-     * <p>根据代码内容、文档类型和编程语言构建完整的提示词。
-     * 通过加载相应的 Prompt 模板并填充代码内容来生成。
+     * <p>移除 AI 模型返回的思考过程数据，
+     * 只保留实际的 JavaDoc 注释内容。
+     *
+     * <p>处理逻辑：
+     * <ul>
+     *   <li>查找 </think> 标签</li>
+     *   <li>如果找到，只保留该标签之后的内容</li>
+     *   <li>如果没有找到，返回原始内容</li>
+     *   <li>确保返回的内容是纯净的</li>
+     * </ul>
+     *
+     * <p>示例：
+     * <ul>
+     *   <li>输入包含思考标签的内容</li>
+     *   <li>输出过滤后的纯净 JavaDoc 注释</li>
+     * </ul>
+     *
+     * @param content 原始响应内容
+     * @return 过滤后的纯净内容
+     */
+    private String filterThinkingContent(String content) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+
+        // 查找 </think> 标签
+        String endTag = "</think>";
+        int endTagIndex = content.indexOf(endTag);
+
+        if (endTagIndex != -1) {
+            // 找到结束标签，只保留该标签之后的内容
+            String filteredContent = content.substring(endTagIndex + endTag.length()).trim();
+
+            if (settings.verboseLogging) {
+                LOG.debug("Filtered thinking content. Original length: " + content.length() +
+                          ", Filtered length: " + filteredContent.length());
+            }
+
+            return filteredContent;
+        }
+
+        // 没有找到思考标签，返回原始内容
+        return content;
+    }
+
+    /**
+     * 构建用户提示词
+     *
+     * <p>根据代码内容、文档类型和编程语言构建用户提示词。
+     * 这个提示词会作为 user 消息发送给 AI 服务，
+     * 包含具体的任务要求和代码内容。
      *
      * <p>构建流程：
      * <ol>
      *   <li>根据文档类型加载相应的 Prompt 模板</li>
      *   <li>使用 String.format 将代码内容插入模板</li>
-     *   <li>返回完整的提示词</li>
+     *   <li>返回完整的用户提示词</li>
      * </ol>
      *
      * @param code     代码内容
      * @param type     文档类型
      * @param language 编程语言
-     * @return 构建好的提示词
+     * @return 构建好的用户提示词
      * @see #loadPromptTemplate(DocumentationTask.TaskType, String)
      */
     protected String buildPrompt(String code, DocumentationTask.TaskType type, String language) {
