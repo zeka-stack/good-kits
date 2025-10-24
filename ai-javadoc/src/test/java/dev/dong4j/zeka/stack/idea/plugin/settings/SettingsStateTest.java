@@ -44,7 +44,7 @@ public class SettingsStateTest {
         assertThat(settings.topP).isEqualTo(0.9);
         assertThat(settings.topK).isEqualTo(50);
         assertThat(settings.presencePenalty).isEqualTo(0.0);
-        assertThat(settings.concurrency).isEqualTo(3);
+        assertThat(settings.performanceMode).isFalse();
         assertThat(settings.verboseLogging).isFalse();
 
         // 支持的语言

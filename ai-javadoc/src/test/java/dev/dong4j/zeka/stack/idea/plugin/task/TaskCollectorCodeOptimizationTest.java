@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * TaskCollector 代码优化功能测试
  *
  * @author dong4j
- * @since 1.0.0.0
+ * @since 1.0.0
  */
 @DisplayName("TaskCollector 代码优化功能测试")
 class TaskCollectorCodeOptimizationTest {

@@ -56,7 +56,7 @@ import dev.dong4j.zeka.stack.idea.plugin.task.DocumentationTask;
  * @version 1.0.0
  * @since 1.0.0
  */
-@SuppressWarnings("LoggingSimilarMessage")
+@SuppressWarnings( {"LoggingSimilarMessage", "D", "DuplicatedCode"})
 public abstract class AICompatibleProvider implements AIServiceProvider {
 
     private static final Logger LOG = Logger.getInstance(AICompatibleProvider.class);
@@ -165,6 +165,74 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      * @see #parseResponse(String)
      */
     protected String sendRequest(String prompt) throws AIServiceException {
+        JSONObject body = buildRequestBody(prompt);
+        return sendRequestWithBody(body, "AI Request", prompt.length(), this::parseResponse);
+    }
+
+    /**
+     * 发送轻量级验证请求
+     *
+     * <p>专门用于配置验证的轻量级请求方法，
+     * 避免使用完整的注释生成提示词，减少 token 消耗。
+     * 使用最小化的测试内容来验证服务连接和配置正确性。
+     *
+     * <p>优化策略：
+     * <ul>
+     *   <li>使用简化的系统提示词，只包含基本的角色设定</li>
+     *   <li>使用极简的用户提示词，只要求简单响应</li>
+     *   <li>设置较小的 max_tokens 限制</li>
+     *   <li>降低 temperature 参数以提高响应一致性</li>
+     * </ul>
+     *
+     * <p>验证目标：
+     * <ul>
+     *   <li>验证 API Key 是否有效</li>
+     *   <li>验证 Base URL 是否可访问</li>
+     *   <li>验证模型名称是否正确</li>
+     *   <li>验证服务是否正常运行</li>
+     * </ul>
+     *
+     * @return AI 服务的响应内容
+     * @throws AIServiceException 当验证请求失败时抛出
+     */
+    protected String sendValidationRequest() throws AIServiceException {
+        JSONObject body = buildValidationRequestBody();
+        return sendRequestWithBody(body, "Validation Request", 0, this::parseValidationResponse);
+    }
+
+    /**
+     * 发送请求到 AI 服务的通用方法
+     *
+     * <p>这是所有 AI 服务请求的通用实现，
+     * 包括注释生成和配置验证。
+     * 通过抽象请求体构建逻辑和响应解析逻辑，避免代码重复。
+     *
+     * <p>处理流程：
+     * <ol>
+     *   <li>构建 HTTP 请求头</li>
+     *   <li>使用提供的请求体</li>
+     *   <li>发送 POST 请求到 /chat/completions 端点</li>
+     *   <li>使用提供的解析器处理响应并解析结果</li>
+     * </ol>
+     *
+     * @param body 请求体 JSON 对象
+     * @param logPrefix 日志前缀，用于区分不同类型的请求
+     * @param promptLength 提示词长度，用于日志记录（验证请求时为 0）
+     * @param responseParser 响应解析器函数，用于解析不同类型的响应
+     * @return AI 服务的响应内容
+     * @throws AIServiceException 当请求失败时抛出
+     */
+    /**
+     * 响应解析器函数接口
+     * 允许抛出 AIServiceException 的解析函数
+     */
+    @FunctionalInterface
+    private interface ResponseParser {
+        String parse(String responseBody) throws AIServiceException;
+    }
+
+    private String sendRequestWithBody(JSONObject body, String logPrefix, int promptLength,
+                                       ResponseParser responseParser) throws AIServiceException {
         try {
             HttpHeaders headers = buildHeaders();
             if (headers == null) {
@@ -172,22 +240,20 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
                                              AIServiceException.ErrorCode.CONFIGURATION_ERROR);
             }
 
-            JSONObject body = buildRequestBody(prompt);
             HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
-
             String url = settings.baseUrl + "/chat/completions";
 
             // 调试日志：记录请求信息
             if (settings.verboseLogging) {
-                LOG.trace("=== AI Request ===");
+                LOG.trace("=== " + logPrefix + " ===");
                 LOG.trace("URL: " + url);
                 LOG.trace("Model: " + settings.modelName);
-                LOG.trace("Temperature: " + settings.temperature);
-                LOG.trace("Max Tokens: " + settings.maxTokens);
                 LOG.trace("Headers: " + maskSensitiveHeaders(headers));
-                LOG.trace("Request Body: " + truncateForLog(body.toString(), 1000));
-                LOG.trace("Prompt Length: " + prompt.length() + " characters");
-                // LOG.trace("Prompt (first 500 chars): \n" + truncateForLog(prompt, 500));
+                LOG.trace("Request Body: " + truncateForLog(body.toString(),
+                                                            "Validation Request".equals(logPrefix) ? 500 : 1000));
+                if (promptLength > 0) {
+                    LOG.trace("Prompt Length: " + promptLength + " characters");
+                }
             }
 
             ResponseEntity<String> response = restTemplate.exchange(
@@ -195,17 +261,19 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
 
             // 调试日志：记录响应信息
             if (settings.verboseLogging) {
-                LOG.trace("=== AI Response ===");
+                LOG.trace("=== " + logPrefix.replace("Request", "Response") + " ===");
                 LOG.trace("Status Code: " + response.getStatusCode());
-                LOG.trace("Response Body: " + truncateForLog(response.getBody(), 2000));
+                LOG.trace("Response Body: " + truncateForLog(response.getBody(),
+                                                             "Validation".equals(logPrefix) ? 1000 : 2000));
             }
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                String result = parseResponse(response.getBody());
+                String result = responseParser.parse(response.getBody());
 
                 if (settings.verboseLogging) {
                     LOG.trace("Parsed Result Length: " + result.length() + " characters");
-                    LOG.trace("Parsed Result:\n" + truncateForLog(result, 1000));
+                    LOG.trace("Parsed Result:\n" + truncateForLog(result,
+                                                                  "Validation".equals(logPrefix) ? 200 : 1000));
                 }
 
                 return result;
@@ -215,17 +283,17 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
                                          AIServiceException.ErrorCode.INVALID_RESPONSE);
 
         } catch (HttpClientErrorException e) {
-            LOG.info("HTTP Client Error: Status=" + e.getStatusCode() + ", Body=" + e.getResponseBodyAsString());
+            LOG.info("HTTP Client Error during " + logPrefix.toLowerCase() + ": Status=" + e.getStatusCode() + ", Body=" + e.getResponseBodyAsString());
             throw handleClientError(e);
         } catch (HttpServerErrorException e) {
-            LOG.info("HTTP Server Error: Status=" + e.getStatusCode() + ", Body=" + e.getResponseBodyAsString());
+            LOG.info("HTTP Server Error during " + logPrefix.toLowerCase() + ": Status=" + e.getStatusCode() + ", Body=" + e.getResponseBodyAsString());
             throw handleServerError(e);
         } catch (ResourceAccessException e) {
-            LOG.info("Network Error: " + e.getMessage());
+            LOG.info("Network Error during " + logPrefix.toLowerCase() + ": " + e.getMessage());
             throw new AIServiceException("Network error: " + e.getMessage(),
                                          AIServiceException.ErrorCode.NETWORK_ERROR, e);
         } catch (Exception e) {
-            LOG.info("Unexpected error during AI service call", e);
+            LOG.info("Unexpected error during " + logPrefix.toLowerCase(), e);
             throw new AIServiceException("Unexpected error: " + e.getMessage(),
                                          AIServiceException.ErrorCode.UNKNOWN_ERROR, e);
         }
@@ -473,6 +541,72 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
     }
 
     /**
+     * 解析验证响应
+     *
+     * <p>专门用于配置验证的响应解析方法，
+     * 通过检查 usage.completion_tokens 来验证服务是否正常工作。
+     * 只要有 token 消耗就说明服务正常响应。
+     *
+     * <p>验证策略：
+     * <ul>
+     *   <li>检查 usage.completion_tokens 是否存在且大于 0</li>
+     *   <li>不关心具体的响应内容，只关心是否有 token 消耗</li>
+     *   <li>返回固定的成功标识</li>
+     * </ul>
+     *
+     * <p>响应格式：
+     * <pre>
+     * {
+     *   "usage": {
+     *     "completion_tokens": 5,
+     *     "prompt_tokens": 10,
+     *     "total_tokens": 15
+     *   },
+     *   "choices": [...]
+     * }
+     * </pre>
+     *
+     * @param responseBody 原始响应体字符串
+     * @return 固定的成功标识 "OK"
+     * @throws AIServiceException 当解析失败或没有 token 消耗时抛出 INVALID_RESPONSE 类型异常
+     */
+    protected String parseValidationResponse(String responseBody) throws AIServiceException {
+        try {
+            JSONObject json = new JSONObject(responseBody);
+
+            // 检查 usage.completion_tokens 是否存在且大于 0
+            if (json.has("usage")) {
+                JSONObject usage = json.getJSONObject("usage");
+                if (usage.has("completion_tokens")) {
+                    int completionTokens = usage.getInt("completion_tokens");
+                    if (completionTokens > 0) {
+                        if (settings.verboseLogging) {
+                            LOG.debug("Validation successful: completion_tokens=" + completionTokens);
+                        }
+                        return "OK";
+                    }
+                }
+            }
+
+            // 如果没有 usage 信息，尝试解析 choices 作为备选方案
+            if (json.has("choices") && json.getJSONArray("choices").length() > 0) {
+                if (settings.verboseLogging) {
+                    LOG.debug("Validation successful: response has choices");
+                }
+                return "OK";
+            }
+
+            throw new AIServiceException("No completion tokens found in response",
+                                         AIServiceException.ErrorCode.INVALID_RESPONSE);
+
+        } catch (Exception e) {
+            LOG.info("Failed to parse validation response: " + responseBody, e);
+            throw new AIServiceException("Failed to parse validation response",
+                                         AIServiceException.ErrorCode.INVALID_RESPONSE, e);
+        }
+    }
+
+    /**
      * 过滤思考内容
      *
      * <p>移除 AI 模型返回的思考过程数据，
@@ -642,16 +776,13 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
     @Override
     public ValidationResult validateConfiguration() {
         try {
-            // 发送一个简单的测试请求
-            String testPrompt = "Test connection. Please respond with 'OK'.";
-
             if (settings.verboseLogging) {
                 LOG.debug("Starting configuration validation for provider: " + getProviderId());
                 LOG.debug("Base URL: " + settings.baseUrl);
                 LOG.debug("Model: " + settings.modelName);
             }
 
-            String response = sendRequest(testPrompt);
+            String response = sendValidationRequest();
 
             if (response != null && !response.isEmpty()) {
                 String successMessage = "连接成功！提供商: " + getProviderName() + ", 模型: " + settings.modelName;
@@ -680,6 +811,65 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
         }
     }
 
+
+    /**
+     * 构建验证请求体
+     *
+     * <p>为配置验证构建极简的 ping-pong 式请求体，
+     * 使用最小化的提示词和参数设置，
+     * 以减少 token 消耗并提高验证速度。
+     *
+     * <p>请求体特点：
+     * <ul>
+     *   <li>无系统提示词：减少不必要的角色设定</li>
+     *   <li>极简用户提示词：只发送 "ping" 进行连接测试</li>
+     *   <li>最小 max_tokens：限制响应为单个单词</li>
+     *   <li>最低 temperature：确保响应一致性</li>
+     * </ul>
+     *
+     * <p>请求体结构：
+     * <pre>
+     * {
+     *   "model": "模型名称",
+     *   "messages": [
+     *     {
+     *       "role": "user",
+     *       "content": "ping"
+     *     }
+     *   ],
+     *   "temperature": 0.0,
+     *   "max_tokens": 5
+     * }
+     * </pre>
+     *
+     * @return 构建好的验证请求体
+     */
+    protected JSONObject buildValidationRequestBody() {
+        // 创建 system 消息
+        JSONObject systemMessage = new JSONObject();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", "i say ping, you say pong");
+
+        // 创建 user 消息
+        JSONObject userMessage = new JSONObject();
+        userMessage.put("role", "user");
+        userMessage.put("content", "ping");
+
+        JSONObject body = new JSONObject();
+        body.put("model", settings.modelName);
+        // ollama 的参数
+        body.put("think", false);
+        // openapi 兼容的参数
+        body.put("enable_thinking", false);
+        // 关闭流式输出
+        body.put("stream", false);
+        body.put("messages", new Object[] {systemMessage, userMessage});
+        body.put("temperature", 0.1);
+        body.put("max_tokens", 32);
+        body.put("top_p", 0.9);
+        return body;
+    }
+
     /**
      * 获取详细的错误消息
      *
@@ -697,7 +887,7 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
                 case RATE_LIMIT -> "请求频率超限。请稍后再试或升级您的服务套餐。";
                 case SERVICE_UNAVAILABLE -> "AI 服务暂时不可用。请稍后重试或检查服务状态。";
                 case NETWORK_ERROR -> "网络连接失败。请检查网络连接或 Base URL 是否正确。\n详情: " + details;
-                case CONFIGURATION_ERROR -> "配置错误。" + details;
+                case CONFIGURATION_ERROR -> "配置错误: Model " + details;
                 case INVALID_RESPONSE -> "服务返回的数据格式错误。可能是模型名称不正确或服务异常。";
                 default -> details;
             };

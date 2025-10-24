@@ -12,7 +12,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import dev.dong4j.zeka.stack.idea.plugin.ai.AICompatibleProvider;
@@ -340,14 +343,66 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
     public double presencePenalty = 0.0;
 
     /**
-     * 批量处理时的并发数
+     * 可用的服务提供商列表
      *
-     * <p>批量处理文档任务时的并发线程数。
-     * 平衡处理速度和系统资源消耗。
+     * <p>存储所有已配置且通过验证的AI服务提供商信息。
+     * 每个提供商包含其配置信息和验证状态。
      *
-     * <p>默认值: 3
+     * <p>默认值: 空列表
      */
-    public int concurrency = 3;
+    public List<ProviderConfig> availableProviders = new ArrayList<>();
+
+    /**
+     * 服务提供商配置信息
+     */
+    public static class ProviderConfig {
+        public String providerId;
+        public String modelName;
+        public String baseUrl;
+        public String apiKey;
+        public boolean configurationVerified;
+        public long lastVerifiedTime;
+
+        public ProviderConfig() {}
+
+        public ProviderConfig(String providerId, String modelName, String baseUrl, String apiKey, boolean configurationVerified) {
+            this.providerId = providerId;
+            this.modelName = modelName;
+            this.baseUrl = baseUrl;
+            this.apiKey = apiKey;
+            this.configurationVerified = configurationVerified;
+            this.lastVerifiedTime = System.currentTimeMillis();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            ProviderConfig that = (ProviderConfig) obj;
+            return Objects.equals(providerId, that.providerId) &&
+                   Objects.equals(baseUrl, that.baseUrl) &&
+                   Objects.equals(apiKey, that.apiKey);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(providerId, baseUrl, apiKey);
+        }
+    }
+
+    /**
+     * 是否启用性能模式
+     *
+     * <p>性能模式下，当任务数量大于5个时，会使用多个可用的服务提供商进行并行处理。
+     * 这可以显著提高大量文件处理的速度。
+     *
+     * <p>默认值: false
+     */
+    public boolean performanceMode = false;
 
     /**
      * 是否启用详细日志
@@ -489,7 +544,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
              * @author dong4j
              * @date 2025.10.24
              * @version 1.0.0
-             * @since 1.0.0.0
+             * @since 1.0.0
              */
             
             待处理的代码片段:
@@ -551,7 +606,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
              * @return 用户名称
              * @throws UserNotFoundException 当用户不存在时抛出
              * @author dong4j
-             * @since 1.0.0.0
+             * @since 1.0.0
              */
             
             待处理的代码片段:
@@ -840,6 +895,44 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      *   <li>Prompt 模板配置</li>
      * </ul>
      */
+    /**
+     * 添加或更新提供商配置
+     *
+     * @param providerConfig 提供商配置
+     */
+    public void addOrUpdateProvider(@NotNull ProviderConfig providerConfig) {
+        // 移除相同的配置（基于providerId, baseUrl, apiKey）
+        availableProviders.removeIf(config ->
+                                        Objects.equals(config.providerId, providerConfig.providerId) &&
+                                        Objects.equals(config.baseUrl, providerConfig.baseUrl) &&
+                                        Objects.equals(config.apiKey, providerConfig.apiKey)
+                                   );
+
+        // 添加新配置
+        availableProviders.add(providerConfig);
+    }
+
+    /**
+     * 获取可用的提供商配置列表
+     *
+     * @return 已验证的提供商配置列表
+     */
+    @NotNull
+    public List<ProviderConfig> getAvailableProviders() {
+        return availableProviders.stream()
+            .filter(config -> config.configurationVerified)
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * 检查是否有多个可用的提供商
+     *
+     * @return 如果有多个提供商返回true
+     */
+    public boolean hasMultipleProviders() {
+        return getAvailableProviders().size() > 1;
+    }
+
     public void resetToDefaults() {
         aiProvider = AIProviderType.QIANWEN.getProviderId();
         modelName = AIProviderType.QIANWEN.getDefaultModel();
@@ -865,7 +958,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
         topP = 0.9;
         topK = 50;
         presencePenalty = 0.0;
-        concurrency = 3;
+        performanceMode = false;
         verboseLogging = false;
 
         classPromptTemplate = getDefaultClassPromptTemplate();

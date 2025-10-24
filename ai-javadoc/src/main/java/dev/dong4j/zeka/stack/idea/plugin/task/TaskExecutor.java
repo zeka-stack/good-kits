@@ -19,8 +19,17 @@ import com.intellij.psi.javadoc.PsiDocComment;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.swing.SwingUtilities;
 
 import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceException;
 import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceFactory;
@@ -79,6 +88,70 @@ public class TaskExecutor {
     private final AtomicInteger skippedCount = new AtomicInteger(0);
 
     /**
+     * 提供商统计信息
+     */
+    public static class ProviderStatistics {
+        private final String providerName;
+        private final AtomicInteger completedCount = new AtomicInteger(0);
+        private final AtomicInteger failedCount = new AtomicInteger(0);
+        private final AtomicInteger skippedCount = new AtomicInteger(0);
+        private final long startTime;
+        private long endTime;
+
+        public ProviderStatistics(String providerName) {
+            this.providerName = providerName;
+            this.startTime = System.currentTimeMillis();
+        }
+
+        public String getProviderName() {
+            return providerName;
+        }
+
+        public int getCompletedCount() {
+            return completedCount.get();
+        }
+
+        public int getFailedCount() {
+            return failedCount.get();
+        }
+
+        public int getSkippedCount() {
+            return skippedCount.get();
+        }
+
+        public int getTotalCount() {
+            return completedCount.get() + failedCount.get() + skippedCount.get();
+        }
+
+        public long getDuration() {
+            return endTime - startTime;
+        }
+
+        public void incrementCompleted() {
+            completedCount.incrementAndGet();
+        }
+
+        public void incrementFailed() {
+            failedCount.incrementAndGet();
+        }
+
+        public void incrementSkipped() {
+            skippedCount.incrementAndGet();
+        }
+
+        public void finish() {
+            this.endTime = System.currentTimeMillis();
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s: 完成=%d, 失败=%d, 跳过=%d, 总计=%d, 耗时=%.1fs",
+                                 providerName, getCompletedCount(), getFailedCount(),
+                                 getSkippedCount(), getTotalCount(), getDuration() / 1000.0);
+        }
+    }
+
+    /**
      * 构造任务执行器
      *
      * @param project   项目对象
@@ -135,6 +208,20 @@ public class TaskExecutor {
 
         log.info("开始处理 {} 个文档生成任务", totalTasks);
 
+        // 检查是否启用性能模式且任务数量大于5个
+        if (settings.performanceMode && totalTasks > 5) {
+            return processTasksInParallel(tasks);
+        } else {
+            return processTasksSequentially(tasks);
+        }
+    }
+
+    /**
+     * 顺序处理任务（原有逻辑）
+     */
+    private boolean processTasksSequentially(@NotNull List<DocumentationTask> tasks) {
+        int totalTasks = tasks.size();
+
         for (int i = 0; i < totalTasks && !indicator.isCanceled(); i++) {
             DocumentationTask task = tasks.get(i);
 
@@ -162,33 +249,307 @@ public class TaskExecutor {
     }
 
     /**
-     * 处理单个任务
-     *
-     * <p>处理单个文档生成任务，包括跳过检查、文档生成和插入。
-     * 完整的错误处理确保单个任务失败不会影响其他任务。
-     *
-     * <p>处理步骤：
-     * <ol>
-     *   <li>设置任务状态为 PROCESSING</li>
-     *   <li>检查是否应该跳过任务</li>
-     *   <li>调用 AI 服务生成文档</li>
-     *   <li>将生成的文档插入到源代码</li>
-     *   <li>更新任务状态和统计计数器</li>
-     * </ol>
-     *
-     * <p>异常处理：
-     * <ul>
-     *   <li>捕获所有异常，防止中断整个处理流程</li>
-     *   <li>记录详细错误日志</li>
-     *   <li>设置任务错误信息</li>
-     *   <li>更新失败计数器</li>
-     * </ul>
-     *
-     * @param task 要处理的文档生成任务
-     * @see #shouldSkip(DocumentationTask)
-     * @see #generateDocumentation(DocumentationTask)
-     * @see #insertDocumentation(DocumentationTask, String)
+     * 并行处理任务（性能模式）
      */
+    private boolean processTasksInParallel(@NotNull List<DocumentationTask> tasks) {
+        List<AIServiceProvider> availableProviders = AIServiceFactory.getAvailableProviders();
+
+        if (availableProviders.isEmpty()) {
+            log.warn("性能模式启用但无可用提供商，回退到顺序处理");
+            return processTasksSequentially(tasks);
+        }
+
+        log.info("性能模式：使用 {} 个提供商并行处理 {} 个任务", availableProviders.size(), tasks.size());
+
+        // 创建线程池
+        ExecutorService executor = Executors.newFixedThreadPool(availableProviders.size());
+
+        // 为每个提供商创建统计对象
+        Map<String, ProviderStatistics> providerStats = new ConcurrentHashMap<>();
+        for (int i = 0; i < availableProviders.size(); i++) {
+            AIServiceProvider provider = availableProviders.get(i);
+            String providerName = provider.getProviderName();
+            providerStats.put(providerName, new ProviderStatistics(providerName));
+        }
+
+        try {
+            // 将任务分配给不同的提供商
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            AtomicInteger taskIndex = new AtomicInteger(0);
+
+            for (int i = 0; i < availableProviders.size(); i++) {
+                AIServiceProvider provider = availableProviders.get(i);
+                String providerName = provider.getProviderName();
+                ProviderStatistics stats = providerStats.get(providerName);
+
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    processTasksWithProvider(tasks, provider, taskIndex, stats);
+                }, executor);
+                futures.add(future);
+            }
+
+            // 等待所有任务完成
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+            // 完成所有统计
+            providerStats.values().forEach(ProviderStatistics::finish);
+
+            indicator.setFraction(1.0);
+            indicator.setText("处理完成");
+
+            // 显示每个提供商的统计信息
+            showProviderStatistics(providerStats);
+
+            log.info("并行任务处理完成。成功: {}, 失败: {}, 跳过: {}",
+                     completedCount.get(), failedCount.get(), skippedCount.get());
+
+            return true;
+
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /**
+     * 使用指定提供商处理任务
+     */
+    private void processTasksWithProvider(@NotNull List<DocumentationTask> tasks,
+                                          @NotNull AIServiceProvider provider,
+                                          @NotNull AtomicInteger taskIndex,
+                                          @NotNull ProviderStatistics stats) {
+        int totalTasks = tasks.size();
+
+        while (taskIndex.get() < totalTasks && !indicator.isCanceled()) {
+            int currentIndex = taskIndex.getAndIncrement();
+            if (currentIndex >= totalTasks) {
+                break;
+            }
+
+            DocumentationTask task = tasks.get(currentIndex);
+
+            // 更新进度
+            SwingUtilities.invokeLater(() -> {
+                double fraction = (double) currentIndex / totalTasks;
+                indicator.setFraction(fraction);
+                indicator.setText(String.format("正在处理 (%d/%d): %s",
+                                                currentIndex + 1, totalTasks, task.getFilePath()));
+                indicator.setText2(String.format("完成: %d, 失败: %d, 跳过: %d",
+                                                 completedCount.get(), failedCount.get(), skippedCount.get()));
+            });
+
+            // 处理任务
+            processTaskWithProvider(task, provider, stats);
+        }
+    }
+
+    /**
+     * 使用指定提供商处理单个任务
+     */
+    private void processTaskWithProvider(@NotNull DocumentationTask task,
+                                         @NotNull AIServiceProvider provider,
+                                         @NotNull ProviderStatistics stats) {
+        try {
+            task.setStatus(DocumentationTask.TaskStatus.PROCESSING);
+
+            // 检查是否应该跳过
+            if (shouldSkip(task)) {
+                task.setStatus(DocumentationTask.TaskStatus.SKIPPED);
+                skippedCount.incrementAndGet();
+                stats.incrementSkipped();
+                return;
+            }
+
+            // 生成文档
+            String documentation = provider.generateDocumentation(task.getCode(), task.getType(), "java");
+
+            if (documentation.trim().isEmpty()) {
+                task.setStatus(DocumentationTask.TaskStatus.FAILED);
+                task.setErrorMessage("生成的文档为空");
+                failedCount.incrementAndGet();
+                stats.incrementFailed();
+                return;
+            }
+
+            // 插入文档
+            insertDocumentation(task, documentation);
+
+            task.setStatus(DocumentationTask.TaskStatus.COMPLETED);
+            task.setResult(documentation);
+            completedCount.incrementAndGet();
+            stats.incrementCompleted();
+
+        } catch (AIServiceException e) {
+            String errorMessage = getAIServiceErrorMessage(e);
+            log.info("AI 服务调用失败: {} - {}", task, errorMessage, e);
+            task.setStatus(DocumentationTask.TaskStatus.FAILED);
+            task.setErrorMessage(errorMessage);
+            failedCount.incrementAndGet();
+            stats.incrementFailed();
+        } catch (Exception e) {
+            log.info("处理任务失败: {}", task, e);
+            task.setStatus(DocumentationTask.TaskStatus.FAILED);
+            task.setErrorMessage(e.getMessage());
+            failedCount.incrementAndGet();
+            stats.incrementFailed();
+        }
+    }
+
+    /**
+     * 显示提供商统计信息
+     */
+    private void showProviderStatistics(@NotNull Map<String, ProviderStatistics> providerStats) {
+        // 创建HTML格式的统计信息
+        StringBuilder htmlContent = new StringBuilder();
+        htmlContent.append("<html><head><style>");
+        htmlContent.append("body { font-family: 'Segoe UI', Arial, sans-serif; margin: 10px; font-size: 12px; }");
+        htmlContent.append("h2 { color: #2E7D32; margin-bottom: 15px; font-size: 16px; }");
+        htmlContent.append("h3 { color: #1976D2; margin-bottom: 10px; font-size: 14px; }");
+        htmlContent.append("table { border-collapse: collapse; width: 100%; margin-bottom: 20px; font-size: 11px; border: 1px solid #ddd;" +
+                           " }");
+        htmlContent.append("th { background-color: #6c757d; color: white; padding: 8px; text-align: center; font-weight: bold; font-size:" +
+                           " 11px; border: 1px solid #ddd; }");
+        htmlContent.append("td { padding: 8px; text-align: center; font-size: 11px; border: 1px solid #ddd; }");
+        htmlContent.append("td.provider-name { text-align: left; }");
+        htmlContent.append("tr:nth-child(even) { background-color: #f8f9fa; }");
+        htmlContent.append("tr:hover { background-color: #e3f2fd; }");
+        htmlContent.append(".summary-row { background-color: #495057; color: white; font-weight: bold; }");
+        htmlContent.append(".summary-row td { border: 1px solid #ddd; }");
+        htmlContent.append("</style></head><body>");
+
+        // 添加标题
+        htmlContent.append("<h2>🚀 性能模式处理完成</h2>");
+
+        // 创建提供商统计表格
+        htmlContent.append("<table>");
+        htmlContent.append("<tr><th>服务商名称</th><th>完成数量</th><th>失败数量</th><th>跳过数量</th><th>耗时</th></tr>");
+
+        int totalCompleted = 0;
+        int totalFailed = 0;
+        int totalSkipped = 0;
+        long totalDuration = 0;
+
+        for (ProviderStatistics stats : providerStats.values()) {
+            htmlContent.append("<tr>");
+            htmlContent.append("<td class='provider-name'>").append(stats.getProviderName()).append("</td>");
+            htmlContent.append("<td>").append(stats.getCompletedCount()).append("</td>");
+            htmlContent.append("<td>").append(stats.getFailedCount()).append("</td>");
+            htmlContent.append("<td>").append(stats.getSkippedCount()).append("</td>");
+            htmlContent.append("<td>").append(String.format("%.1fs", stats.getDuration() / 1000.0)).append("</td>");
+            htmlContent.append("</tr>");
+
+            totalCompleted += stats.getCompletedCount();
+            totalFailed += stats.getFailedCount();
+            totalSkipped += stats.getSkippedCount();
+            totalDuration += stats.getDuration();
+        }
+
+        // 添加总体统计行
+        htmlContent.append("<tr class='summary-row'>");
+        htmlContent.append("<td>📊 总体统计</td>");
+        htmlContent.append("<td>").append(totalCompleted).append("</td>");
+        htmlContent.append("<td>").append(totalFailed).append("</td>");
+        htmlContent.append("<td>").append(totalSkipped).append("</td>");
+        htmlContent.append("<td>").append(String.format("%.1fs", totalDuration / 1000.0)).append("</td>");
+        htmlContent.append("</tr>");
+
+        htmlContent.append("</table>");
+        htmlContent.append("</body></html>");
+
+        // 在日志中记录详细信息
+        StringBuilder logMessage = new StringBuilder();
+        logMessage.append("性能模式统计详情：\n");
+        logMessage.append("各提供商处理统计：\n");
+
+        for (ProviderStatistics stats : providerStats.values()) {
+            logMessage.append("• ").append(stats.toString()).append("\n");
+        }
+
+        logMessage.append("\n总体统计：\n");
+        logMessage.append(String.format("• 总计: %d 个任务\n", totalCompleted + totalFailed + totalSkipped));
+        logMessage.append(String.format("• 完成: %d 个\n", totalCompleted));
+        logMessage.append(String.format("• 失败: %d 个\n", totalFailed));
+        logMessage.append(String.format("• 跳过: %d 个\n", totalSkipped));
+        logMessage.append(String.format("• 总耗时: %.1f 秒\n", totalDuration / 1000.0));
+
+        if (totalCompleted > 0) {
+            double avgTimePerTask = (double) totalDuration / totalCompleted;
+            logMessage.append(String.format("• 平均每任务耗时: %.1f 秒", avgTimePerTask / 1000.0));
+        }
+
+        log.info("{}", logMessage);
+
+        // 显示HTML格式的通知给用户
+        SwingUtilities.invokeLater(() -> {
+            // 创建自定义对话框
+            javax.swing.JDialog dialog = new javax.swing.JDialog((java.awt.Frame) null, "性能模式处理完成", true);
+            dialog.setDefaultCloseOperation(javax.swing.JDialog.DISPOSE_ON_CLOSE);
+
+            // 设置插件图标
+            try {
+                javax.swing.ImageIcon icon = new javax.swing.ImageIcon(
+                    getClass().getResource("/META-INF/pluginIcon.svg")
+                );
+                dialog.setIconImage(icon.getImage());
+            } catch (Exception e) {
+                // 如果图标加载失败，使用默认图标
+                log.debug("无法加载插件图标: {}", e.getMessage());
+            }
+
+            // 创建HTML内容面板
+            javax.swing.JEditorPane editorPane = new javax.swing.JEditorPane();
+            editorPane.setContentType("text/html");
+            editorPane.setText(htmlContent.toString());
+            editorPane.setEditable(false);
+            editorPane.setBackground(javax.swing.UIManager.getColor("Panel.background"));
+
+            // 计算动态高度
+            int providerCount = providerStats.size();
+            int totalRows = providerCount + 2; // 提供商行数 + 表头 + 总体统计行
+
+            // 每行高度约30px，表头高度约35px，总体统计行高度约35px, 在加上标题和一定的冗余量
+            int calculatedHeight = 35 + (providerCount * 30) + 35 + 50;
+
+            // 设置最小和最大高度阈值
+            int minHeight = 200;  // 最小高度
+            int maxHeight = 600;  // 最大高度
+
+            // 应用阈值限制
+            int finalHeight = Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
+
+            // 记录高度计算信息
+            log.debug("动态高度计算: 提供商数量={}, 计算高度={}, 最终高度={}",
+                      providerCount, calculatedHeight, finalHeight);
+
+            // 设置滚动面板
+            javax.swing.JScrollPane scrollPane = new javax.swing.JScrollPane(editorPane);
+            scrollPane.setPreferredSize(new java.awt.Dimension(800, finalHeight));
+
+            // 添加确定按钮
+            javax.swing.JButton okButton = new javax.swing.JButton("确定");
+            okButton.addActionListener(e -> dialog.dispose());
+
+            javax.swing.JPanel buttonPanel = new javax.swing.JPanel();
+            buttonPanel.add(okButton);
+
+            // 设置布局
+            dialog.setLayout(new java.awt.BorderLayout());
+            dialog.add(scrollPane, java.awt.BorderLayout.CENTER);
+            dialog.add(buttonPanel, java.awt.BorderLayout.SOUTH);
+
+            // 设置对话框属性
+            dialog.pack();
+            dialog.setLocationRelativeTo(null);
+            dialog.setVisible(true);
+        });
+    }
     private void processTask(@NotNull DocumentationTask task) {
         try {
             task.setStatus(DocumentationTask.TaskStatus.PROCESSING);

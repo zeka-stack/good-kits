@@ -79,8 +79,8 @@ public class JavaDocSettingsPanel {
     private JSpinner topPSpinner;
     private JSpinner topKSpinner;
     private JSpinner presencePenaltySpinner;
-    private JSpinner concurrencySpinner;
     private JBCheckBox verboseLoggingCheckBox;
+    private JBCheckBox performanceModeCheckBox;
 
     // Prompt 配置 - Tab 页
     private JBTabbedPane promptTabbedPane;
@@ -138,8 +138,8 @@ public class JavaDocSettingsPanel {
         topPSpinner = new JSpinner(new SpinnerNumberModel(0.9, 0.0, 1.0, 0.1));
         topKSpinner = new JSpinner(new SpinnerNumberModel(50, 1, 100, 1));
         presencePenaltySpinner = new JSpinner(new SpinnerNumberModel(0.1, -2.0, 2.0, 0.1));
-        concurrencySpinner = new JSpinner(new SpinnerNumberModel(3, 1, 10, 1));
         verboseLoggingCheckBox = new JBCheckBox(JavaDocBundle.message("settings.verbose.logging"));
+        performanceModeCheckBox = new JBCheckBox(JavaDocBundle.message("settings.performance.mode"));
 
         // Prompt 配置 - 创建文本区域（将在 Tab 页中使用）
         systemPromptTextArea = new JTextArea(10, 50);
@@ -197,10 +197,8 @@ public class JavaDocSettingsPanel {
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.timeout")),
                                  createAdvancedConfigPanel(timeoutSpinner,
                                                            "settings.timeout.hint"))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.concurrency")),
-                                 createAdvancedConfigPanel(concurrencySpinner
-                                     , "settings.concurrency.hint"))
             .addComponent(verboseLoggingCheckBox)
+            .addComponent(performanceModeCheckBox)
             .addSeparator(10)
 
             .addComponent(new JBLabel(JavaDocBundle.message("settings.prompt.templates")))
@@ -698,6 +696,10 @@ public class JavaDocSettingsPanel {
                     if (result.isSuccess()) {
                         // 测试成功，标记配置为已验证
                         markConfigurationAsVerified();
+
+                        // 添加到可用提供商列表
+                        addToAvailableProviders();
+                        
                         JOptionPane.showMessageDialog(
                             mainPanel,
                             result.getMessage(),
@@ -745,6 +747,26 @@ public class JavaDocSettingsPanel {
 
     public JPanel getPanel() {
         return mainPanel;
+    }
+
+    /**
+     * 将当前配置添加到可用提供商列表
+     */
+    private void addToAvailableProviders() {
+        SettingsState settings = SettingsState.getInstance();
+        SettingsState currentSettings = getSettings();
+
+        // 创建提供商配置
+        SettingsState.ProviderConfig providerConfig = new SettingsState.ProviderConfig(
+            currentSettings.aiProvider,
+            currentSettings.modelName,
+            currentSettings.baseUrl,
+            currentSettings.apiKey,
+            true
+        );
+
+        // 添加到可用提供商列表
+        settings.addOrUpdateProvider(providerConfig);
     }
 
     /**
@@ -806,8 +828,8 @@ public class JavaDocSettingsPanel {
         settings.topP = (Double) topPSpinner.getValue();
         settings.topK = (Integer) topKSpinner.getValue();
         settings.presencePenalty = (Double) presencePenaltySpinner.getValue();
-        settings.concurrency = (Integer) concurrencySpinner.getValue();
         settings.verboseLogging = verboseLoggingCheckBox.isSelected();
+        settings.performanceMode = performanceModeCheckBox.isSelected();
 
         // Prompt 配置 - 从 Tab 页获取
         settings.systemPromptTemplate = systemPromptTextArea.getText().trim();
@@ -863,8 +885,8 @@ public class JavaDocSettingsPanel {
         topPSpinner.setValue(settings.topP);
         topKSpinner.setValue(settings.topK);
         presencePenaltySpinner.setValue(settings.presencePenalty);
-        concurrencySpinner.setValue(settings.concurrency);
         verboseLoggingCheckBox.setSelected(settings.verboseLogging);
+        performanceModeCheckBox.setSelected(settings.performanceMode);
 
         // Prompt 配置 - 加载到 Tab 页
         systemPromptTextArea.setText(settings.systemPromptTemplate);

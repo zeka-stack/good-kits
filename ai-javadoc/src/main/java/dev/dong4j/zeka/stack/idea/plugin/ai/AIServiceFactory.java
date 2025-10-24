@@ -114,6 +114,40 @@ public class AIServiceFactory {
     }
 
     /**
+     * 根据提供商配置创建服务提供商实例
+     *
+     * @param providerConfig 提供商配置
+     * @return AI 服务提供商实例，创建失败返回 null
+     */
+    @org.jetbrains.annotations.Nullable
+    public static AIServiceProvider createProvider(@NotNull SettingsState.ProviderConfig providerConfig) {
+        Class<? extends AIServiceProvider> providerClass = PROVIDERS.get(providerConfig.providerId);
+        if (providerClass == null) {
+            String supportedProviders = String.join(", ", AIProviderType.getAllProviderIds());
+            String error = "不支持的 AI 提供商: " + providerConfig.providerId + "。当前支持的提供商：" + supportedProviders;
+            com.intellij.openapi.diagnostic.Logger.getInstance(AIServiceFactory.class).error(error);
+            return null;
+        }
+
+        try {
+            // 创建临时的SettingsState用于创建提供商实例
+            SettingsState tempSettings = new SettingsState();
+            tempSettings.aiProvider = providerConfig.providerId;
+            tempSettings.modelName = providerConfig.modelName;
+            tempSettings.baseUrl = providerConfig.baseUrl;
+            tempSettings.apiKey = providerConfig.apiKey;
+            tempSettings.configurationVerified = providerConfig.configurationVerified;
+
+            return providerClass.getDeclaredConstructor(SettingsState.class)
+                .newInstance(tempSettings);
+        } catch (Exception e) {
+            String error = "创建 AI 提供商失败: " + providerConfig.providerId + "。请检查配置是否正确。";
+            com.intellij.openapi.diagnostic.Logger.getInstance(AIServiceFactory.class).error(error, e);
+            return null;
+        }
+    }
+
+    /**
      * 获取所有支持的提供商 ID
      *
      * <p>返回当前系统支持的所有 AI 服务提供商的 ID 集合。
@@ -237,10 +271,15 @@ public class AIServiceFactory {
         // 获取当前配置
         SettingsState settings = SettingsState.getInstance();
 
-        // 尝试创建提供商实例
-        AIServiceProvider provider = createProvider(settings);
-        if (provider != null) {
-            providers.add(provider);
+        // 获取所有可用的提供商配置
+        List<SettingsState.ProviderConfig> availableConfigs = settings.getAvailableProviders();
+
+        // 为每个配置创建提供商实例
+        for (SettingsState.ProviderConfig config : availableConfigs) {
+            AIServiceProvider provider = createProvider(config);
+            if (provider != null) {
+                providers.add(provider);
+            }
         }
 
         return providers;

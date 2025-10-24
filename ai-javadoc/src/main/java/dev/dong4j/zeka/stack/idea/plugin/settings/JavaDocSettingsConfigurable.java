@@ -201,7 +201,7 @@ public class JavaDocSettingsConfigurable implements Configurable {
         if (currentSettings.maxTokens != panelSettings.maxTokens) {
             return true;
         }
-        if (currentSettings.concurrency != panelSettings.concurrency) {
+        if (currentSettings.performanceMode != panelSettings.performanceMode) {
             return true;
         }
 
@@ -278,7 +278,7 @@ public class JavaDocSettingsConfigurable implements Configurable {
         currentSettings.timeout = panelSettings.timeout;
         currentSettings.temperature = panelSettings.temperature;
         currentSettings.maxTokens = panelSettings.maxTokens;
-        currentSettings.concurrency = panelSettings.concurrency;
+        currentSettings.performanceMode = panelSettings.performanceMode;
 
         // 保存 Prompt 模板配置
         currentSettings.systemPromptTemplate = panelSettings.systemPromptTemplate;
@@ -402,7 +402,7 @@ public class JavaDocSettingsConfigurable implements Configurable {
             return false;
         }
 
-        return settings.concurrency >= 1 && settings.concurrency <= 10;
+        return settings.performanceMode || !settings.performanceMode;
     }
 }
 
