@@ -25,7 +25,7 @@ public class SettingsStateTest {
     @DisplayName("测试默认配置值")
     void testDefaultValues() {
         assertThat(settings.aiProvider).isEqualTo(AIProviderType.QIANWEN.getProviderId());
-        assertThat(settings.modelName).isEqualTo("qwen-max");
+        assertThat(settings.modelName).isEqualTo("qwen3-8b");
         assertThat(settings.baseUrl).isEqualTo("https://dashscope.aliyuncs.com/compatible-mode/v1");
         assertThat(settings.apiKey).isEmpty();
 
@@ -41,6 +41,9 @@ public class SettingsStateTest {
         assertThat(settings.waitDuration).isEqualTo(5000);
         assertThat(settings.temperature).isEqualTo(0.1);
         assertThat(settings.maxTokens).isEqualTo(1000);
+        assertThat(settings.topP).isEqualTo(0.9);
+        assertThat(settings.topK).isEqualTo(50);
+        assertThat(settings.presencePenalty).isEqualTo(0.0);
         assertThat(settings.concurrency).isEqualTo(3);
         assertThat(settings.verboseLogging).isFalse();
 
@@ -147,13 +150,16 @@ public class SettingsStateTest {
         settings.generateForField = true;
         settings.maxRetries = 5;
         settings.temperature = 0.5;
+        settings.topP = 0.5;
+        settings.topK = 20;
+        settings.presencePenalty = 0.5;
 
         // 重置
         settings.resetToDefaults();
 
         // 验证
         assertThat(settings.aiProvider).isEqualTo(AIProviderType.QIANWEN.getProviderId());
-        assertThat(settings.modelName).isEqualTo("qwen-max");
+        assertThat(settings.modelName).isEqualTo("qwen3-8b");
         assertThat(settings.baseUrl).isEqualTo("https://dashscope.aliyuncs.com/compatible-mode/v1");
         assertThat(settings.apiKey).isEmpty();
         assertThat(settings.generateForClass).isTrue();
@@ -161,6 +167,9 @@ public class SettingsStateTest {
         assertThat(settings.generateForField).isFalse();
         assertThat(settings.maxRetries).isEqualTo(3);
         assertThat(settings.temperature).isEqualTo(0.1);
+        assertThat(settings.topP).isEqualTo(0.9);
+        assertThat(settings.topK).isEqualTo(50);
+        assertThat(settings.presencePenalty).isEqualTo(0.0);
     }
 
     @Test
@@ -174,6 +183,9 @@ public class SettingsStateTest {
         settings.generateForField = true;
         settings.maxRetries = 5;
         settings.temperature = 0.5;
+        settings.topP = 0.5;
+        settings.topK = 20;
+        settings.presencePenalty = 0.5;
 
         // 复制
         SettingsState copy = settings.copy();
@@ -186,6 +198,9 @@ public class SettingsStateTest {
         assertThat(copy.generateForField).isEqualTo(settings.generateForField);
         assertThat(copy.maxRetries).isEqualTo(settings.maxRetries);
         assertThat(copy.temperature).isEqualTo(settings.temperature);
+        assertThat(copy.topP).isEqualTo(settings.topP);
+        assertThat(copy.topK).isEqualTo(settings.topK);
+        assertThat(copy.presencePenalty).isEqualTo(settings.presencePenalty);
 
         // 验证是不同的对象
         assertThat(copy).isNotSameAs(settings);
@@ -258,6 +273,9 @@ public class SettingsStateTest {
         newState.baseUrl = "http://localhost:11434";
         newState.generateForField = true;
         newState.maxRetries = 5;
+        newState.topP = 0.5;
+        newState.topK = 20;
+        newState.presencePenalty = 0.5;
 
         // 加载状态
         settings.loadState(newState);
@@ -268,6 +286,9 @@ public class SettingsStateTest {
         assertThat(settings.baseUrl).isEqualTo("http://localhost:11434");
         assertThat(settings.generateForField).isTrue();
         assertThat(settings.maxRetries).isEqualTo(5);
+        assertThat(settings.topP).isEqualTo(0.5);
+        assertThat(settings.topK).isEqualTo(20);
+        assertThat(settings.presencePenalty).isEqualTo(0.5);
     }
 }
 

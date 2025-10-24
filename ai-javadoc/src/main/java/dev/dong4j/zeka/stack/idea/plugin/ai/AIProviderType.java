@@ -77,17 +77,17 @@ public enum AIProviderType {
      */
     OLLAMA(
         "ollama",
-        "Ollama (本地)",
+        "Ollama",
         "http://localhost:11434/v1",
         "qwen:7b",
         false,
         Arrays.asList(
-            "qwen:7b",
-            "qwen:14b",
-            "codellama:7b",
-            "deepseek-coder:6.7b",
-            "llama2:7b",
-            "mistral:7b"
+            "gpt-oss:120b-cloud",
+            "gpt-oss:20b-cloud",
+            "qwen3-coder:480b-cloud",
+            "glm-4.6:cloud",
+            "deepseek-r1:14b",
+            "qwen3-8b"
                      )
     ),
 
@@ -307,5 +307,39 @@ public enum AIProviderType {
         return Arrays.stream(values())
             .map(AIProviderType::getDisplayName)
             .toList();
+    }
+
+    /**
+     * 根据显示名称获取提供商标识符
+     *
+     * <p>用于从 UI 界面选择的显示名称转换为提供商标识符。
+     * 提供 UI 和配置存储之间的转换支持。
+     *
+     * @param displayName 显示名称
+     * @return 对应的提供商标识符，如果未找到返回 null
+     */
+    @org.jetbrains.annotations.Nullable
+    public static String getProviderIdByDisplayName(@NotNull String displayName) {
+        for (AIProviderType type : values()) {
+            if (type.displayName.equals(displayName)) {
+                return type.providerId;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 根据提供商标识符获取显示名称
+     *
+     * <p>用于从配置存储的提供商标识符转换为显示名称。
+     * 提供配置存储和 UI 界面之间的转换支持。
+     *
+     * @param providerId 提供商标识符
+     * @return 对应的显示名称，如果未找到返回 null
+     */
+    @org.jetbrains.annotations.Nullable
+    public static String getDisplayNameByProviderId(@NotNull String providerId) {
+        AIProviderType providerType = fromProviderId(providerId);
+        return providerType != null ? providerType.getDisplayName() : null;
     }
 }

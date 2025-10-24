@@ -75,16 +75,19 @@ public class JavaDocSettingsPanel {
     private JSpinner timeoutSpinner;
     private JSpinner temperatureSpinner;
     private JSpinner maxTokensSpinner;
+    private JSpinner topPSpinner;
+    private JSpinner topKSpinner;
+    private JSpinner presencePenaltySpinner;
     private JSpinner concurrencySpinner;
     private JBCheckBox verboseLoggingCheckBox;
 
     // Prompt 配置 - Tab 页
     private JBTabbedPane promptTabbedPane;
-    private JTextArea systemPromptTextArea;
-    private JTextArea classPromptTextArea;
-    private JTextArea methodPromptTextArea;
-    private JTextArea fieldPromptTextArea;
-    private JTextArea testPromptTextArea;
+    public JTextArea systemPromptTextArea;
+    public JTextArea classPromptTextArea;
+    public JTextArea methodPromptTextArea;
+    public JTextArea fieldPromptTextArea;
+    public JTextArea testPromptTextArea;
 
     public JavaDocSettingsPanel() {
         createUI();
@@ -93,7 +96,7 @@ public class JavaDocSettingsPanel {
 
     private void createUI() {
         // AI 提供商配置
-        providerComboBox = new ComboBox<>(AIProviderType.getAllProviderIds().toArray(new String[0]));
+        providerComboBox = new ComboBox<>(AIProviderType.getAllDisplayNames().toArray(new String[0]));
 
         // 创建可编辑的模型下拉框，用户可以输入任何模型名称
         modelComboBox = new ComboBox<>();
@@ -128,6 +131,9 @@ public class JavaDocSettingsPanel {
         timeoutSpinner = new JSpinner(new SpinnerNumberModel(30000, 1000, 300000, 1000));
         temperatureSpinner = new JSpinner(new SpinnerNumberModel(0.1, 0.0, 2.0, 0.1));
         maxTokensSpinner = new JSpinner(new SpinnerNumberModel(1000, 100, 10000, 100));
+        topPSpinner = new JSpinner(new SpinnerNumberModel(0.9, 0.0, 1.0, 0.1));
+        topKSpinner = new JSpinner(new SpinnerNumberModel(50, 1, 100, 1));
+        presencePenaltySpinner = new JSpinner(new SpinnerNumberModel(0.1, -2.0, 2.0, 0.1));
         concurrencySpinner = new JSpinner(new SpinnerNumberModel(3, 1, 10, 1));
         verboseLoggingCheckBox = new JBCheckBox(JavaDocBundle.message("settings.verbose.logging"));
 
@@ -160,19 +166,36 @@ public class JavaDocSettingsPanel {
             .addComponent(kotlinCheckBox)
             .addSeparator(10)
 
+            .addComponent(new JBLabel(JavaDocBundle.message("settings.model.config")))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.tokens")),
+                                 createAdvancedConfigPanel(maxTokensSpinner,
+                                                           "settings.max" +
+                                                           ".tokens.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.temperature")),
+                                 createAdvancedConfigPanel(temperatureSpinner
+                                     , "settings.temperature.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.top.p")),
+                                 createAdvancedConfigPanel(topPSpinner,
+                                                           "settings.top.p.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.top.k")),
+                                 createAdvancedConfigPanel(topKSpinner,
+                                                           "settings.top.k.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.presence.penalty")),
+                                 createAdvancedConfigPanel(presencePenaltySpinner,
+                                                           "settings.presence.penalty.hint"))
+            .addSeparator(10)
+
             .addComponent(new JBLabel(JavaDocBundle.message("settings.advanced.config")))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.retries")), createAdvancedConfigPanel(maxRetriesSpinner,
-                                                                                                                       "settings.max" +
-                                                                                                                       ".retries.hint"))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.timeout")), createAdvancedConfigPanel(timeoutSpinner,
-                                                                                                                   "settings.timeout.hint"))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.temperature")), createAdvancedConfigPanel(temperatureSpinner
-                , "settings.temperature.hint"))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.tokens")), createAdvancedConfigPanel(maxTokensSpinner,
-                                                                                                                      "settings.max" +
-                                                                                                                      ".tokens.hint"))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.concurrency")), createAdvancedConfigPanel(concurrencySpinner
-                , "settings.concurrency.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.retries")),
+                                 createAdvancedConfigPanel(maxRetriesSpinner,
+                                                           "settings.max" +
+                                                           ".retries.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.timeout")),
+                                 createAdvancedConfigPanel(timeoutSpinner,
+                                                           "settings.timeout.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.concurrency")),
+                                 createAdvancedConfigPanel(concurrencySpinner
+                                     , "settings.concurrency.hint"))
             .addComponent(verboseLoggingCheckBox)
             .addSeparator(10)
 
@@ -257,7 +280,7 @@ public class JavaDocSettingsPanel {
         return tabPanel;
     }
 
-    private void resetPromptToDefault(String promptType, JTextArea textArea) {
+    public void resetPromptToDefault(String promptType, JTextArea textArea) {
         String defaultTemplate = switch (promptType) {
             case "system" -> SettingsState.getDefaultSystemPromptTemplate();
             case "class" -> SettingsState.getDefaultClassPromptTemplate();
@@ -324,7 +347,13 @@ public class JavaDocSettingsPanel {
     }
 
     private void updateModelList() {
-        String providerId = (String) providerComboBox.getSelectedItem();
+        String displayName = (String) providerComboBox.getSelectedItem();
+        if (displayName == null) {
+            return;
+        }
+
+        // 将显示名称转换为提供商标识符
+        String providerId = AIProviderType.getProviderIdByDisplayName(displayName);
         if (providerId == null) {
             return;
         }
@@ -380,10 +409,16 @@ public class JavaDocSettingsPanel {
      * </ul>
      */
     private void updateAvailableModels() {
-        String providerId = (String) providerComboBox.getSelectedItem();
+        String displayName = (String) providerComboBox.getSelectedItem();
         String baseUrl = baseUrlField.getText().trim();
 
-        if (providerId == null || baseUrl.isEmpty()) {
+        if (displayName == null || baseUrl.isEmpty()) {
+            return;
+        }
+
+        // 将显示名称转换为提供商标识符
+        String providerId = AIProviderType.getProviderIdByDisplayName(displayName);
+        if (providerId == null) {
             return;
         }
 
@@ -462,7 +497,13 @@ public class JavaDocSettingsPanel {
     }
 
     private void updateDefaultValues() {
-        String providerId = (String) providerComboBox.getSelectedItem();
+        String displayName = (String) providerComboBox.getSelectedItem();
+        if (displayName == null) {
+            return;
+        }
+
+        // 将显示名称转换为提供商标识符
+        String providerId = AIProviderType.getProviderIdByDisplayName(displayName);
         if (providerId == null) {
             return;
         }
@@ -478,7 +519,15 @@ public class JavaDocSettingsPanel {
     }
 
     private void updateApiKeyVisibility() {
-        String providerId = (String) providerComboBox.getSelectedItem();
+        String displayName = (String) providerComboBox.getSelectedItem();
+        if (displayName == null) {
+            apiKeyField.setEnabled(false);
+            testConnectionButton.setEnabled(false);
+            return;
+        }
+
+        // 将显示名称转换为提供商标识符
+        String providerId = AIProviderType.getProviderIdByDisplayName(displayName);
         AIProviderType providerType = providerId == null ? null : AIProviderType.fromProviderId(providerId);
         boolean requiresKey = providerType != null && providerType.requiresApiKey();
         apiKeyField.setEnabled(requiresKey);
@@ -584,8 +633,10 @@ public class JavaDocSettingsPanel {
     public SettingsState getSettings() {
         SettingsState settings = new SettingsState();
 
-        // AI 提供商配置
-        settings.aiProvider = (String) providerComboBox.getSelectedItem();
+        // AI 提供商配置 - 将显示名称转换为提供商标识符
+        String displayName = (String) providerComboBox.getSelectedItem();
+        String providerId = displayName != null ? AIProviderType.getProviderIdByDisplayName(displayName) : null;
+        settings.aiProvider = providerId != null ? providerId : AIProviderType.QIANWEN.getProviderId();
         // 获取用户输入的模型名称（可能是从列表选择的，也可能是手动输入的）
         Object selectedModel = modelComboBox.getEditor().getItem();
         settings.modelName = selectedModel != null ? selectedModel.toString().trim() : "";
@@ -617,6 +668,9 @@ public class JavaDocSettingsPanel {
         settings.timeout = (Integer) timeoutSpinner.getValue();
         settings.temperature = (Double) temperatureSpinner.getValue();
         settings.maxTokens = (Integer) maxTokensSpinner.getValue();
+        settings.topP = (Double) topPSpinner.getValue();
+        settings.topK = (Integer) topKSpinner.getValue();
+        settings.presencePenalty = (Double) presencePenaltySpinner.getValue();
         settings.concurrency = (Integer) concurrencySpinner.getValue();
         settings.verboseLogging = verboseLoggingCheckBox.isSelected();
 
@@ -635,8 +689,14 @@ public class JavaDocSettingsPanel {
      */
     @SuppressWarnings("DuplicatedCode")
     public void loadSettings(@NotNull SettingsState settings) {
-        // AI 提供商配置
-        providerComboBox.setSelectedItem(settings.aiProvider);
+        // AI 提供商配置 - 将提供商标识符转换为显示名称
+        String displayName = AIProviderType.getDisplayNameByProviderId(settings.aiProvider);
+        if (displayName != null) {
+            providerComboBox.setSelectedItem(displayName);
+        } else {
+            // 如果找不到对应的显示名称，使用默认值
+            providerComboBox.setSelectedItem(AIProviderType.QIANWEN.getDisplayName());
+        }
         updateModelList();
         modelComboBox.setSelectedItem(settings.modelName);
         baseUrlField.setText(settings.baseUrl);
@@ -665,6 +725,9 @@ public class JavaDocSettingsPanel {
         timeoutSpinner.setValue(settings.timeout);
         temperatureSpinner.setValue(settings.temperature);
         maxTokensSpinner.setValue(settings.maxTokens);
+        topPSpinner.setValue(settings.topP);
+        topKSpinner.setValue(settings.topK);
+        presencePenaltySpinner.setValue(settings.presencePenalty);
         concurrencySpinner.setValue(settings.concurrency);
         verboseLoggingCheckBox.setSelected(settings.verboseLogging);
 

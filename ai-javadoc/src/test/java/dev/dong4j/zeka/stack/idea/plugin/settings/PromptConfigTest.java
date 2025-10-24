@@ -27,8 +27,8 @@ public class PromptConfigTest {
 
     @BeforeEach
     public void setUp() {
-        // 保存原始设置
-        originalSettings = SettingsState.getInstance();
+        // 创建新的设置实例
+        originalSettings = new SettingsState();
 
         // 创建设置面板
         settingsPanel = new JavaDocSettingsPanel();

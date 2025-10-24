@@ -375,6 +375,9 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
         body.put("messages", new Object[] {systemMessage, userMessage});
         body.put("temperature", settings.temperature);
         body.put("max_tokens", settings.maxTokens);
+        body.put("top_p", settings.topP);
+        body.put("top_k", settings.topK);
+        body.put("presence_penalty", settings.presencePenalty);
 
         return body;
     }

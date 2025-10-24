@@ -568,6 +568,12 @@ public class TaskExecutorIntegrationTest extends MyBasePlatformTestCase {
         public boolean requiresApiKey() {
             return false;
         }
+
+        @NotNull
+        @Override
+        public List<String> getAvailableModels() {
+            return List.of("mock-model-1", "mock-model-2");
+        }
     }
 
     /**

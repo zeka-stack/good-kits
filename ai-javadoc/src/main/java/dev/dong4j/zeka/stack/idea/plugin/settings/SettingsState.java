@@ -86,11 +86,11 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * <p>指定使用的 AI 模型名称。
      * 不同的提供商支持不同的模型。
      *
-     * <p>默认值: "qwen-max" (通义千问最大模型)
+     * <p>默认值: "qwen3-8b" (通义千问8B模型)
      *
      * @see AIServiceProvider#getSupportedModels()
      */
-    public String modelName = "qwen-max";
+    public String modelName = "qwen3-8b";
 
     /**
      * API Base URL
@@ -290,9 +290,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * 范围 0.0-1.0，较低的值产生更确定的结果。
      * 对于文档生成，建议使用较低值保证一致性。
      *
-     * <p>默认值: 0.1
-     *
-     * @see <a href="https://help.aliyun.com/zh/dashscope/developer-reference/temperature">温度参数说明</a>
+     * <p>默认值: 0.1 (越低越稳定；注释生成主要是语义重述，不需要太多创造力。)
      */
     public double temperature = 0.1;
 
@@ -307,6 +305,39 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * @see <a href="https://help.aliyun.com/zh/dashscope/developer-reference/max_tokens">Max Tokens 说明</a>
      */
     public int maxTokens = 1000;
+
+    /**
+     * Top-p 参数
+     *
+     * <p>控制 AI 生成结果的多样性。
+     * 范围 0.0-1.0，较低的值产生更确定的结果。
+     * 与 temperature 配合使用，控制生成内容的随机性。
+     *
+     * <p>默认值: 0.9 (保留高概率词，但允许少量变体（比如不同描述方式）。
+     */
+    public double topP = 0.9;
+
+    /**
+     * Top-k 参数
+     *
+     * <p>限制 AI 在生成下一个 token 时考虑的候选词数量。
+     * 范围 1-100，较低的值产生更确定的结果。
+     * 与 temperature 和 top-p 配合使用，控制生成内容的随机性。
+     *
+     * <p>默认值: 50 (平衡创意与质量)
+     */
+    public int topK = 50;
+
+    /**
+     * Presence Penalty 参数
+     *
+     * <p>控制 AI 避免重复生成相同内容的倾向。
+     * 范围 -2.0 到 2.0，正值减少重复，负值增加重复。
+     * 对于文档生成，建议使用正值避免重复描述。
+     *
+     * <p>默认值: 0.0 (不需要惩罚重复，因为注释模板往往有固定格式。
+     */
+    public double presencePenalty = 0.0;
 
     /**
      * 批量处理时的并发数
@@ -831,6 +862,9 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
         waitDuration = 5000;
         temperature = 0.1;
         maxTokens = 1000;
+        topP = 0.9;
+        topK = 50;
+        presencePenalty = 0.0;
         concurrency = 3;
         verboseLogging = false;
 
@@ -877,7 +911,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      *
      * <p>示例：
      * <ul>
-     *   <li>"https://api.openai.com/v1/" → "https://api.openai.com/v1"</li>
+     *   <li>"<a href="https://api.openai.com/v1/">...</a>" → "https://api.openai.com/v1"</li>
      *   <li>"http://localhost:11434/v1///" → "http://localhost:11434/v1"</li>
      *   <li>"https://api.example.com" → "https://api.example.com"</li>
      * </ul>
@@ -887,7 +921,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      */
     @NotNull
     public static String normalizeBaseUrl(@NotNull String baseUrl) {
-        if (baseUrl == null || baseUrl.trim().isEmpty()) {
+        if (baseUrl.trim().isEmpty()) {
             return "";
         }
 
