@@ -54,6 +54,7 @@ public class JavaDocSettingsPanel {
     private JBTextField baseUrlField;
     private JBPasswordField apiKeyField;
     private JButton testConnectionButton;
+    private JButton refreshModelsButton;
 
     // 验证状态标记
     private boolean configurationVerified = false;
@@ -111,6 +112,9 @@ public class JavaDocSettingsPanel {
 
         testConnectionButton = new JButton(JavaDocBundle.message("settings.test.connection"));
         testConnectionButton.addActionListener(e -> testConnection());
+
+        refreshModelsButton = new JButton(JavaDocBundle.message("settings.refresh.models"));
+        refreshModelsButton.addActionListener(e -> refreshAvailableModels());
 
         // 功能配置
         generateForClassCheckBox = new JBCheckBox(JavaDocBundle.message("settings.generate.for.class"));
@@ -213,10 +217,16 @@ public class JavaDocSettingsPanel {
         JPanel panel = new JPanel(new BorderLayout(5, 0));
         panel.add(modelComboBox, BorderLayout.CENTER);
 
+        // 创建右侧按钮面板
+        JPanel rightPanel = new JPanel(new BorderLayout(5, 0));
+        rightPanel.add(refreshModelsButton, BorderLayout.WEST);
+        
         JBLabel hintLabel = new JBLabel(JavaDocBundle.message("settings.model.hint"));
         hintLabel.setFont(hintLabel.getFont().deriveFont(hintLabel.getFont().getSize() - 2.0f));
         hintLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
-        panel.add(hintLabel, BorderLayout.EAST);
+        rightPanel.add(hintLabel, BorderLayout.EAST);
+
+        panel.add(rightPanel, BorderLayout.EAST);
 
         return panel;
     }
@@ -310,31 +320,11 @@ public class JavaDocSettingsPanel {
             markConfigurationAsUnverified();
         });
 
-        // Base URL 变更时，如果用户已输入 Base URL 和 API Key，则尝试获取模型列表
-        baseUrlField.addActionListener(e -> {
-            markConfigurationAsUnverified();
-            // 延迟获取模型列表，避免频繁请求
-            SwingUtilities.invokeLater(() -> {
-                try {
-                    Thread.sleep(500); // 等待用户停止输入
-                    updateAvailableModels();
-                } catch (InterruptedException ignored) {
-                }
-            });
-        });
+        // Base URL 变更时清除验证状态
+        baseUrlField.addActionListener(e -> markConfigurationAsUnverified());
 
-        // API Key 变更时，如果用户已输入 Base URL 和 API Key，则尝试获取模型列表
-        apiKeyField.addActionListener(e -> {
-            markConfigurationAsUnverified();
-            // 延迟获取模型列表，避免频繁请求
-            SwingUtilities.invokeLater(() -> {
-                try {
-                    Thread.sleep(500); // 等待用户停止输入
-                    updateAvailableModels();
-                } catch (InterruptedException ignored) {
-                }
-            });
-        });
+        // API Key 变更时清除验证状态
+        apiKeyField.addActionListener(e -> markConfigurationAsUnverified());
 
         // 模型选择变更时清除验证状态
         modelComboBox.addActionListener(e -> markConfigurationAsUnverified());
@@ -383,6 +373,151 @@ public class JavaDocSettingsPanel {
         if (modelComboBox.getEditor() != null && modelComboBox.getEditor().getEditorComponent() instanceof JTextField textField) {
             textField.setToolTipText(JavaDocBundle.message("settings.model.hint"));
         }
+    }
+
+    /**
+     * 刷新可用模型列表（用户手动触发）
+     *
+     * <p>当用户点击"获取最新模型"按钮时调用此方法。
+     * 会显示加载状态，并在完成后恢复按钮状态。
+     */
+    private void refreshAvailableModels() {
+        String displayName = (String) providerComboBox.getSelectedItem();
+        String baseUrl = baseUrlField.getText().trim();
+
+        if (displayName == null || baseUrl.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                mainPanel,
+                JavaDocBundle.message("error.base.url.missing"),
+                JavaDocBundle.message("settings.error.title"),
+                JOptionPane.WARNING_MESSAGE
+                                         );
+            return;
+        }
+
+        // 将显示名称转换为提供商标识符
+        String providerId = AIProviderType.getProviderIdByDisplayName(displayName);
+        if (providerId == null) {
+            return;
+        }
+
+        // 检查是否需要 API Key
+        AIProviderType providerType = AIProviderType.fromProviderId(providerId);
+        boolean needsApiKey = providerType != null && providerType.requiresApiKey();
+        if (needsApiKey && apiKeyField.getPassword().length == 0) {
+            JOptionPane.showMessageDialog(
+                mainPanel,
+                JavaDocBundle.message("error.api.key.missing"),
+                JavaDocBundle.message("settings.error.title"),
+                JOptionPane.WARNING_MESSAGE
+                                         );
+            return;
+        }
+
+        // 设置按钮状态
+        refreshModelsButton.setEnabled(false);
+        refreshModelsButton.setText(JavaDocBundle.message("settings.refresh.models.testing"));
+
+        // 在后台线程中获取模型列表
+        new Thread(() -> {
+            try {
+                SettingsState tempSettings = new SettingsState();
+                tempSettings.aiProvider = providerId;
+                tempSettings.baseUrl = baseUrl;
+                tempSettings.apiKey = new String(apiKeyField.getPassword());
+                tempSettings.configurationVerified = true;
+
+                AIServiceProvider provider = AIServiceFactory.createProvider(tempSettings);
+                if (provider == null) {
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(
+                            mainPanel,
+                            "创建 AI 服务提供商失败，请检查配置是否正确",
+                            JavaDocBundle.message("settings.error.title"),
+                            JOptionPane.ERROR_MESSAGE
+                                                     );
+                        refreshModelsButton.setText(JavaDocBundle.message("settings.refresh.models"));
+                        refreshModelsButton.setEnabled(true);
+                    });
+                    return;
+                }
+
+                List<String> availableModels = provider.getAvailableModels();
+
+                // 在 UI 线程中更新下拉框
+                SwingUtilities.invokeLater(() -> {
+                    if (!availableModels.isEmpty()) {
+                        // 保存当前选择的模型
+                        String currentModel = (String) modelComboBox.getSelectedItem();
+
+                        // 清空当前列表
+                        modelComboBox.removeAllItems();
+
+                        // 添加可用模型
+                        for (String model : availableModels) {
+                            modelComboBox.addItem(model);
+                        }
+
+                        // 尝试恢复用户之前选择的模型
+                        if (currentModel != null && !currentModel.trim().isEmpty()) {
+                            // 检查当前模型是否在可用列表中
+                            boolean found = false;
+                            for (String model : availableModels) {
+                                if (model.equals(currentModel)) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+
+                            if (found) {
+                                modelComboBox.setSelectedItem(currentModel);
+                            } else {
+                                // 如果当前模型不可用，选择第一个可用模型
+                                modelComboBox.setSelectedIndex(0);
+                            }
+                        } else {
+                            // 如果没有当前选择，使用默认模型
+                            modelComboBox.setSelectedItem(provider.getDefaultModel());
+                        }
+
+                        // 更新提示文本
+                        if (modelComboBox.getEditor() != null &&
+                            modelComboBox.getEditor().getEditorComponent() instanceof JTextField textField) {
+                            textField.setToolTipText("从服务提供商获取的可用模型列表");
+                        }
+
+                        JOptionPane.showMessageDialog(
+                            mainPanel,
+                            "成功获取到 " + availableModels.size() + " 个可用模型",
+                            JavaDocBundle.message("settings.test.result.title"),
+                            JOptionPane.INFORMATION_MESSAGE
+                                                     );
+                    } else {
+                        JOptionPane.showMessageDialog(
+                            mainPanel,
+                            "未获取到可用模型，请检查配置是否正确",
+                            JavaDocBundle.message("settings.error.title"),
+                            JOptionPane.WARNING_MESSAGE
+                                                     );
+                    }
+
+                    refreshModelsButton.setText(JavaDocBundle.message("settings.refresh.models"));
+                    refreshModelsButton.setEnabled(true);
+                });
+
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(
+                        mainPanel,
+                        "获取模型列表失败: " + e.getMessage(),
+                        JavaDocBundle.message("settings.error.title"),
+                        JOptionPane.ERROR_MESSAGE
+                                                 );
+                    refreshModelsButton.setText(JavaDocBundle.message("settings.refresh.models"));
+                    refreshModelsButton.setEnabled(true);
+                });
+            }
+        }).start();
     }
 
     /**

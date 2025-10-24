@@ -692,22 +692,15 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
         String details = e.getMessage();
 
         if (errorCode != null) {
-            switch (errorCode) {
-                case INVALID_API_KEY:
-                    return "API Key 无效或已过期。请检查并更新您的 API Key。";
-                case RATE_LIMIT:
-                    return "请求频率超限。请稍后再试或升级您的服务套餐。";
-                case SERVICE_UNAVAILABLE:
-                    return "AI 服务暂时不可用。请稍后重试或检查服务状态。";
-                case NETWORK_ERROR:
-                    return "网络连接失败。请检查网络连接或 Base URL 是否正确。\n详情: " + details;
-                case CONFIGURATION_ERROR:
-                    return "配置错误。" + details;
-                case INVALID_RESPONSE:
-                    return "服务返回的数据格式错误。可能是模型名称不正确或服务异常。";
-                default:
-                    return details;
-            }
+            return switch (errorCode) {
+                case INVALID_API_KEY -> "API Key 无效或已过期。请检查并更新您的 API Key。";
+                case RATE_LIMIT -> "请求频率超限。请稍后再试或升级您的服务套餐。";
+                case SERVICE_UNAVAILABLE -> "AI 服务暂时不可用。请稍后重试或检查服务状态。";
+                case NETWORK_ERROR -> "网络连接失败。请检查网络连接或 Base URL 是否正确。\n详情: " + details;
+                case CONFIGURATION_ERROR -> "配置错误。" + details;
+                case INVALID_RESPONSE -> "服务返回的数据格式错误。可能是模型名称不正确或服务异常。";
+                default -> details;
+            };
         }
 
         return details != null ? details : "未知错误";
