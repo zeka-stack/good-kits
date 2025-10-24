@@ -205,6 +205,23 @@ public class JavaDocSettingsConfigurable implements Configurable {
             return true;
         }
 
+        // 比较 Prompt 模板配置
+        if (!currentSettings.systemPromptTemplate.equals(panelSettings.systemPromptTemplate)) {
+            return true;
+        }
+        if (!currentSettings.classPromptTemplate.equals(panelSettings.classPromptTemplate)) {
+            return true;
+        }
+        if (!currentSettings.methodPromptTemplate.equals(panelSettings.methodPromptTemplate)) {
+            return true;
+        }
+        if (!currentSettings.fieldPromptTemplate.equals(panelSettings.fieldPromptTemplate)) {
+            return true;
+        }
+        if (!currentSettings.testPromptTemplate.equals(panelSettings.testPromptTemplate)) {
+            return true;
+        }
+
         return !currentSettings.supportedLanguages.equals(panelSettings.supportedLanguages);
     }
 
@@ -262,6 +279,13 @@ public class JavaDocSettingsConfigurable implements Configurable {
         currentSettings.temperature = panelSettings.temperature;
         currentSettings.maxTokens = panelSettings.maxTokens;
         currentSettings.concurrency = panelSettings.concurrency;
+
+        // 保存 Prompt 模板配置
+        currentSettings.systemPromptTemplate = panelSettings.systemPromptTemplate;
+        currentSettings.classPromptTemplate = panelSettings.classPromptTemplate;
+        currentSettings.methodPromptTemplate = panelSettings.methodPromptTemplate;
+        currentSettings.fieldPromptTemplate = panelSettings.fieldPromptTemplate;
+        currentSettings.testPromptTemplate = panelSettings.testPromptTemplate;
 
         currentSettings.supportedLanguages = panelSettings.supportedLanguages;
         currentSettings.verboseLogging = panelSettings.verboseLogging;
