@@ -28,7 +28,7 @@ class AICompatibleProviderMessageTest {
     @BeforeEach
     void setUp() {
         settings = new SettingsState();
-        settings.aiProvider = "custom";
+        settings.aiProvider = AIProviderType.CUSTOM.getProviderId();
         settings.baseUrl = "https://api.openai.com/v1";
         settings.apiKey = "test-api-key";
         settings.modelName = "gpt-3.5-turbo";

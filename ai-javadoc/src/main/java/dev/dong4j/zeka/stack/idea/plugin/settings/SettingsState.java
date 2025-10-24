@@ -16,9 +16,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 import dev.dong4j.zeka.stack.idea.plugin.ai.AICompatibleProvider;
+import dev.dong4j.zeka.stack.idea.plugin.ai.AIProviderType;
 import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceFactory;
 import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceProvider;
-import dev.dong4j.zeka.stack.idea.plugin.ai.OllamaProvider;
 import dev.dong4j.zeka.stack.idea.plugin.task.DocumentationTask;
 import dev.dong4j.zeka.stack.idea.plugin.task.TaskCollector;
 
@@ -68,16 +68,17 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      *
      * <p>支持的值:
      * <ul>
-     *   <li>"qianwen": 通义千问服务</li>
-     *   <li>"ollama": Ollama 本地服务</li>
-     *   <li>"custom": 自定义服务（兼容 OpenAI API）</li>
+     *   <li>QIANWEN: 通义千问服务</li>
+     *   <li>OLLAMA: Ollama 本地服务</li>
+     *   <li>CUSTOM: 自定义服务（兼容 OpenAI API）</li>
      * </ul>
      *
-     * <p>默认值: "qianwen"
+     * <p>默认值: QIANWEN
      *
      * @see AIServiceFactory#createProvider(SettingsState)
+     * @see AIProviderType
      */
-    public String aiProvider = "qianwen";
+    public String aiProvider = AIProviderType.QIANWEN.getProviderId();
 
     /**
      * 模型名称
@@ -96,10 +97,12 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      *
      * <p>AI 服务的 API 基础地址。
      * 不同提供商有不同的默认地址。
+     * 系统会自动处理末尾的斜杠，确保URL格式正确。
      *
      * <p>默认值: "<a href="https://dashscope.aliyuncs.com/compatible-mode/v1">...</a>" (通义千问)
      *
      * @see AIServiceProvider#getDefaultBaseUrl()
+     * @see #normalizeBaseUrl(String)
      */
     public String baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
 
@@ -757,20 +760,20 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * 当前配置是否需要 API Key
      *
      * <p>根据当前选择的 AI 提供商判断是否需要 API Key。
-     * 某些本地服务（如 Ollama）不需要 API Key。
+     * 使用枚举类型进行判断，避免字符串比较的错误。
      *
      * <p>判断逻辑:
      * <ul>
-     *   <li>"ollama" 返回 false</li>
+     *   <li>OLLAMA 返回 false</li>
      *   <li>其他提供商返回 true</li>
      * </ul>
      *
      * @return 如果需要 API Key 返回 true
-     * @see OllamaProvider#requiresApiKey()
+     * @see AIProviderType#requiresApiKey()
      */
     public boolean requiresApiKey() {
-        // Ollama 不需要 API Key
-        return !"ollama".equals(aiProvider);
+        AIProviderType providerType = AIProviderType.fromProviderId(aiProvider);
+        return providerType != null && providerType.requiresApiKey();
     }
 
     /**
@@ -807,9 +810,9 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * </ul>
      */
     public void resetToDefaults() {
-        aiProvider = "qianwen";
-        modelName = "qwen-max";
-        baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        aiProvider = AIProviderType.QIANWEN.getProviderId();
+        modelName = AIProviderType.QIANWEN.getDefaultModel();
+        baseUrl = AIProviderType.QIANWEN.getDefaultBaseUrl();
         apiKey = "";
         configurationVerified = false;
 
@@ -857,6 +860,57 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
         SettingsState copy = new SettingsState();
         XmlSerializerUtil.copyBean(this, copy);
         return copy;
+    }
+
+    /**
+     * 标准化 Base URL
+     *
+     * <p>确保 Base URL 格式正确，移除末尾的斜杠。
+     * 这样可以避免在拼接 API 路径时出现双斜杠的问题。
+     *
+     * <p>处理规则：
+     * <ul>
+     *   <li>移除末尾的单个或多个斜杠</li>
+     *   <li>保留协议部分（http:// 或 https://）</li>
+     *   <li>处理空字符串和 null 值</li>
+     * </ul>
+     *
+     * <p>示例：
+     * <ul>
+     *   <li>"https://api.openai.com/v1/" → "https://api.openai.com/v1"</li>
+     *   <li>"http://localhost:11434/v1///" → "http://localhost:11434/v1"</li>
+     *   <li>"https://api.example.com" → "https://api.example.com"</li>
+     * </ul>
+     *
+     * @param baseUrl 原始 Base URL
+     * @return 标准化后的 Base URL
+     */
+    @NotNull
+    public static String normalizeBaseUrl(@NotNull String baseUrl) {
+        if (baseUrl == null || baseUrl.trim().isEmpty()) {
+            return "";
+        }
+
+        String normalized = baseUrl.trim();
+
+        // 移除末尾的斜杠
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        return normalized;
+    }
+
+    /**
+     * 设置 Base URL（自动标准化）
+     *
+     * <p>设置 Base URL 时自动进行标准化处理，
+     * 确保 URL 格式正确。
+     *
+     * @param baseUrl 要设置的 Base URL
+     */
+    public void setBaseUrl(@NotNull String baseUrl) {
+        this.baseUrl = normalizeBaseUrl(baseUrl);
     }
 }
 

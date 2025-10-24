@@ -27,7 +27,7 @@ class CustomProviderTest {
     @BeforeEach
     void setUp() {
         settings = new SettingsState();
-        settings.aiProvider = "custom";
+        settings.aiProvider = AIProviderType.CUSTOM.getProviderId();
         settings.baseUrl = "https://api.openai.com/v1";
         settings.apiKey = "test-api-key";
         settings.modelName = "gpt-3.5-turbo";
@@ -38,7 +38,7 @@ class CustomProviderTest {
 
     @Test
     void testGetProviderId() {
-        assertEquals("custom", provider.getProviderId());
+        assertEquals(AIProviderType.CUSTOM.getProviderId(), provider.getProviderId());
     }
 
     @Test

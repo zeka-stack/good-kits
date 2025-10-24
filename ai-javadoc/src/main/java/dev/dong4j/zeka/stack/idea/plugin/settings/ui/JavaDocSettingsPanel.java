@@ -15,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.util.HashSet;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
@@ -27,6 +28,7 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
+import dev.dong4j.zeka.stack.idea.plugin.ai.AIProviderType;
 import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceFactory;
 import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceProvider;
 import dev.dong4j.zeka.stack.idea.plugin.ai.ValidationResult;
@@ -41,6 +43,7 @@ import dev.dong4j.zeka.stack.idea.plugin.util.JavaDocBundle;
  * @author dong4j
  * @version 1.0.0
  */
+@SuppressWarnings("D")
 public class JavaDocSettingsPanel {
 
     private JPanel mainPanel;
@@ -90,7 +93,7 @@ public class JavaDocSettingsPanel {
 
     private void createUI() {
         // AI 提供商配置
-        providerComboBox = new ComboBox<>(new String[] {"qianwen", "ollama", "custom"});
+        providerComboBox = new ComboBox<>(AIProviderType.getAllProviderIds().toArray(new String[0]));
 
         // 创建可编辑的模型下拉框，用户可以输入任何模型名称
         modelComboBox = new ComboBox<>();
@@ -138,9 +141,9 @@ public class JavaDocSettingsPanel {
         // 构建主面板
         mainPanel = FormBuilder.createFormBuilder()
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.provider.label")), providerComboBox)
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.model.label")), createModelPanel())
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.base.url.label")), baseUrlField)
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.api.key.label")), createApiKeyPanel())
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.model.label")), createModelPanel())
             .addSeparator(10)
 
             .addComponent(new JBLabel(JavaDocBundle.message("settings.generation.options")))
@@ -284,9 +287,32 @@ public class JavaDocSettingsPanel {
             markConfigurationAsUnverified();
         });
 
-        // 监听关键配置变更，清除验证状态
-        baseUrlField.addActionListener(e -> markConfigurationAsUnverified());
-        apiKeyField.addActionListener(e -> markConfigurationAsUnverified());
+        // Base URL 变更时，如果用户已输入 Base URL 和 API Key，则尝试获取模型列表
+        baseUrlField.addActionListener(e -> {
+            markConfigurationAsUnverified();
+            // 延迟获取模型列表，避免频繁请求
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    Thread.sleep(500); // 等待用户停止输入
+                    updateAvailableModels();
+                } catch (InterruptedException ignored) {
+                }
+            });
+        });
+
+        // API Key 变更时，如果用户已输入 Base URL 和 API Key，则尝试获取模型列表
+        apiKeyField.addActionListener(e -> {
+            markConfigurationAsUnverified();
+            // 延迟获取模型列表，避免频繁请求
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    Thread.sleep(500); // 等待用户停止输入
+                    updateAvailableModels();
+                } catch (InterruptedException ignored) {
+                }
+            });
+        });
+
         // 模型选择变更时清除验证状态
         modelComboBox.addActionListener(e -> markConfigurationAsUnverified());
 
@@ -303,40 +329,136 @@ public class JavaDocSettingsPanel {
             return;
         }
 
-        try {
-            SettingsState tempSettings = new SettingsState();
-            tempSettings.aiProvider = providerId;
-            // 临时允许创建未验证的提供商用于获取模型列表
-            tempSettings.configurationVerified = true;
-            AIServiceProvider provider = AIServiceFactory.createProvider(tempSettings);
-
-            if (provider == null) {
-                return;
-            }
-
-            // 保存当前输入的模型名称
-            String currentModel = (String) modelComboBox.getSelectedItem();
-
-            // 清空并添加推荐模型列表（仅作为参考）
-            modelComboBox.removeAllItems();
-            for (String model : provider.getSupportedModels()) {
-                modelComboBox.addItem(model);
-            }
-
-            // 恢复用户之前输入的值，如果为空则使用默认值
-            if (currentModel != null && !currentModel.trim().isEmpty()) {
-                modelComboBox.setSelectedItem(currentModel);
-            } else {
-                modelComboBox.setSelectedItem(provider.getDefaultModel());
-            }
-
-            // 设置提示文本
-            if (modelComboBox.getEditor() != null && modelComboBox.getEditor().getEditorComponent() instanceof JTextField textField) {
-                textField.setToolTipText(JavaDocBundle.message("settings.model.hint"));
-            }
-        } catch (Exception e) {
-            // 忽略错误
+        AIProviderType providerType = AIProviderType.fromProviderId(providerId);
+        if (providerType == null) {
+            return;
         }
+
+        // 保存当前输入的模型名称
+        String currentModel = (String) modelComboBox.getSelectedItem();
+
+        // 清空并添加推荐的模型列表（仅作为参考）
+        modelComboBox.removeAllItems();
+        for (String model : providerType.getSupportedModels()) {
+            modelComboBox.addItem(model);
+        }
+
+        // 恢复用户之前输入的值，如果为空则使用默认值
+        if (currentModel != null && !currentModel.trim().isEmpty()) {
+            modelComboBox.setSelectedItem(currentModel);
+        } else {
+            modelComboBox.setSelectedItem(providerType.getDefaultModel());
+        }
+
+        // 设置提示文本
+        if (modelComboBox.getEditor() != null && modelComboBox.getEditor().getEditorComponent() instanceof JTextField textField) {
+            textField.setToolTipText(JavaDocBundle.message("settings.model.hint"));
+        }
+    }
+
+    /**
+     * 更新可用的模型列表
+     *
+     * <p>当用户输入了 Base URL 和 API Key（如果需要）后，
+     * 尝试从 AI 服务提供商获取实际的可用模型列表。
+     * 这个方法会调用提供商的 getAvailableModels() 方法。
+     *
+     * <p>更新策略：
+     * <ul>
+     *   <li>检查是否已输入必要的配置信息</li>
+     *   <li>创建临时的提供商实例</li>
+     *   <li>调用 getAvailableModels() 获取实际模型列表</li>
+     *   <li>更新下拉框内容</li>
+     *   <li>保持用户当前选择的模型（如果仍然可用）</li>
+     * </ul>
+     *
+     * <p>错误处理：
+     * <ul>
+     *   <li>网络错误：静默失败，保持当前模型列表</li>
+     *   <li>认证错误：静默失败，保持当前模型列表</li>
+     *   <li>解析错误：静默失败，保持当前模型列表</li>
+     * </ul>
+     */
+    private void updateAvailableModels() {
+        String providerId = (String) providerComboBox.getSelectedItem();
+        String baseUrl = baseUrlField.getText().trim();
+
+        if (providerId == null || baseUrl.isEmpty()) {
+            return;
+        }
+
+        // 检查是否需要 API Key
+        AIProviderType providerType = AIProviderType.fromProviderId(providerId);
+        boolean needsApiKey = providerType != null && providerType.requiresApiKey();
+        if (needsApiKey && apiKeyField.getPassword().length == 0) {
+            return;
+        }
+
+        // 保存当前选择的模型
+        String currentModel = (String) modelComboBox.getSelectedItem();
+
+        // 在后台线程中获取模型列表
+        new Thread(() -> {
+            try {
+                SettingsState tempSettings = new SettingsState();
+                tempSettings.aiProvider = providerId;
+                tempSettings.baseUrl = baseUrl;
+                tempSettings.apiKey = new String(apiKeyField.getPassword());
+                tempSettings.configurationVerified = true;
+
+                AIServiceProvider provider = AIServiceFactory.createProvider(tempSettings);
+                if (provider == null) {
+                    return;
+                }
+
+                List<String> availableModels = provider.getAvailableModels();
+
+                // 在 UI 线程中更新下拉框
+                SwingUtilities.invokeLater(() -> {
+                    if (!availableModels.isEmpty()) {
+                        // 清空当前列表
+                        modelComboBox.removeAllItems();
+
+                        // 添加可用模型
+                        for (String model : availableModels) {
+                            modelComboBox.addItem(model);
+                        }
+
+                        // 尝试恢复用户之前选择的模型
+                        if (currentModel != null && !currentModel.trim().isEmpty()) {
+                            // 检查当前模型是否在可用列表中
+                            boolean found = false;
+                            for (String model : availableModels) {
+                                if (model.equals(currentModel)) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+
+                            if (found) {
+                                modelComboBox.setSelectedItem(currentModel);
+                            } else {
+                                // 如果当前模型不可用，选择第一个可用模型
+                                modelComboBox.setSelectedIndex(0);
+                            }
+                        } else {
+                            // 如果没有当前选择，使用默认模型
+                            modelComboBox.setSelectedItem(provider.getDefaultModel());
+                        }
+
+                        // 更新提示文本
+                        if (modelComboBox.getEditor() != null &&
+                            modelComboBox.getEditor().getEditorComponent() instanceof JTextField textField) {
+                            textField.setToolTipText("从服务提供商获取的可用模型列表");
+                        }
+                    }
+                });
+
+            } catch (Exception e) {
+                // 静默失败，保持当前模型列表
+                // 在实际应用中，可以考虑显示一个非阻塞的提示
+            }
+        }).start();
     }
 
     private void updateDefaultValues() {
@@ -345,27 +467,20 @@ public class JavaDocSettingsPanel {
             return;
         }
 
-        try {
-            SettingsState tempSettings = new SettingsState();
-            tempSettings.aiProvider = providerId;
-            // 临时允许创建未验证的提供商用于获取默认值
-            tempSettings.configurationVerified = true;
-            AIServiceProvider provider = AIServiceFactory.createProvider(tempSettings);
-
-            if (provider == null) {
-                return;
-            }
-
-            baseUrlField.setText(provider.getDefaultBaseUrl());
-            modelComboBox.setSelectedItem(provider.getDefaultModel());
-        } catch (Exception e) {
-            // 忽略错误
+        AIProviderType providerType = AIProviderType.fromProviderId(providerId);
+        if (providerType == null) {
+            return;
         }
+
+        // 使用枚举中的默认配置
+        baseUrlField.setText(providerType.getDefaultBaseUrl());
+        modelComboBox.setSelectedItem(providerType.getDefaultModel());
     }
 
     private void updateApiKeyVisibility() {
         String providerId = (String) providerComboBox.getSelectedItem();
-        boolean requiresKey = !"ollama".equals(providerId);
+        AIProviderType providerType = providerId == null ? null : AIProviderType.fromProviderId(providerId);
+        boolean requiresKey = providerType != null && providerType.requiresApiKey();
         apiKeyField.setEnabled(requiresKey);
         testConnectionButton.setEnabled(true);
     }
@@ -474,7 +589,7 @@ public class JavaDocSettingsPanel {
         // 获取用户输入的模型名称（可能是从列表选择的，也可能是手动输入的）
         Object selectedModel = modelComboBox.getEditor().getItem();
         settings.modelName = selectedModel != null ? selectedModel.toString().trim() : "";
-        settings.baseUrl = baseUrlField.getText().trim();
+        settings.setBaseUrl(baseUrlField.getText().trim()); // 使用标准化方法
         settings.apiKey = new String(apiKeyField.getPassword()).trim();
 
         // 设置验证状态

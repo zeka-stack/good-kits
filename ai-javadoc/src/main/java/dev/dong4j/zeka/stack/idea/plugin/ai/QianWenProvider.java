@@ -2,7 +2,6 @@ package dev.dong4j.zeka.stack.idea.plugin.ai;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
 import java.util.List;
 
 import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
@@ -46,30 +45,6 @@ import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
  */
 public class QianWenProvider extends AICompatibleProvider {
 
-    private static final String PROVIDER_ID = "qianwen";
-    private static final String PROVIDER_NAME = "通义千问 (QianWen)";
-    private static final String DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-    private static final String DEFAULT_MODEL = "qwen-max";
-
-    /**
-     * 常用模型列表（仅作为参考）
-     * 通义千问支持更多模型，用户可以根据需要使用官方文档中的任何模型
-     *
-     * <p>模型选择建议：
-     * <ul>
-     *   <li>qwen-max: 适用于对质量要求高的场景</li>
-     *   <li>qwen-plus: 适用于平衡质量和成本的场景</li>
-     *   <li>qwen-turbo: 适用于对速度要求高的场景</li>
-     * </ul>
-     *
-     * <p>注意：模型列表可能随时间更新，建议参考官方文档获取最新信息。
-     */
-    private static final List<String> SUGGESTED_MODELS = Arrays.asList(
-        "qwen-max",          // 最新最强大的模型（推荐）
-        "qwen-plus",         // 性价比较高
-        "qwen-turbo"         // 速度最快
-                                                                      );
-
     public QianWenProvider(SettingsState settings) {
         super(settings);
     }
@@ -77,13 +52,13 @@ public class QianWenProvider extends AICompatibleProvider {
     @NotNull
     @Override
     public String getProviderId() {
-        return PROVIDER_ID;
+        return AIProviderType.QIANWEN.getProviderId();
     }
 
     @NotNull
     @Override
     public String getProviderName() {
-        return PROVIDER_NAME;
+        return AIProviderType.QIANWEN.getDisplayName();
     }
 
     /**
@@ -95,36 +70,29 @@ public class QianWenProvider extends AICompatibleProvider {
      * <p>注意：这只是常用模型列表，用户可以使用通义千问支持的任何模型。
      * 请参考官方文档获取完整的模型列表。
      *
-     * <p>列表内容：
-     * <ul>
-     *   <li>qwen-max: 最新最强大的模型（推荐）</li>
-     *   <li>qwen-plus: 性价比较高</li>
-     *   <li>qwen-turbo: 速度最快</li>
-     * </ul>
-     *
      * @return 常用模型列表（作为参考）
      */
     @NotNull
     @Override
     public List<String> getSupportedModels() {
-        return SUGGESTED_MODELS;
+        return AIProviderType.QIANWEN.getSupportedModels();
     }
 
     @NotNull
     @Override
     public String getDefaultModel() {
-        return DEFAULT_MODEL;
+        return AIProviderType.QIANWEN.getDefaultModel();
     }
 
     @NotNull
     @Override
     public String getDefaultBaseUrl() {
-        return DEFAULT_BASE_URL;
+        return AIProviderType.QIANWEN.getDefaultBaseUrl();
     }
 
     @Override
     public boolean requiresApiKey() {
-        return true;
+        return AIProviderType.QIANWEN.requiresApiKey();
     }
 }
 

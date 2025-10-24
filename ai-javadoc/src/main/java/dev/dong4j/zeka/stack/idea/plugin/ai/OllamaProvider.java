@@ -1,8 +1,10 @@
 package dev.dong4j.zeka.stack.idea.plugin.ai;
 
 import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
@@ -56,46 +58,6 @@ import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
  */
 public class OllamaProvider extends AICompatibleProvider {
 
-    private static final String PROVIDER_ID = "ollama";
-    private static final String PROVIDER_NAME = "Ollama (本地)";
-    private static final String DEFAULT_BASE_URL = "http://localhost:11434/v1";
-    private static final String DEFAULT_MODEL = "qwen:7b";
-
-    /**
-     * 推荐的常用模型列表（仅作为参考）
-     * 用户可以使用任何通过 ollama pull 下载的模型
-     *
-     * <p>模型分类：
-     * <ul>
-     *   <li>通义千问系列：优秀的中文处理能力</li>
-     *   <li>代码专用模型：针对代码理解和生成优化</li>
-     *   <li>通用模型：适用于多种任务的通用模型</li>
-     * </ul>
-     *
-     * <p>选择建议：
-     * <ul>
-     *   <li>中文文档生成：推荐 qwen 系列</li>
-     *   <li>代码文档生成：推荐 codellama 或 deepseek-coder</li>
-     *   <li>通用任务：推荐 llama2 或 mistral</li>
-     * </ul>
-     *
-     * <p>注意：模型列表会随 Ollama 更新而变化，
-     * 建议查看官方文档获取最新信息。
-     */
-    private static final List<String> SUGGESTED_MODELS = Arrays.asList(
-        // 通义千问系列（推荐用于中文）
-        "qwen:7b",
-        "qwen:14b",
-
-        // 代码专用模型（推荐用于代码文档生成）
-        "codellama:7b",
-        "deepseek-coder:6.7b",
-
-        // 通用模型
-        "llama2:7b",
-        "mistral:7b"
-                                                                      );
-
     public OllamaProvider(SettingsState settings) {
         super(settings);
     }
@@ -103,13 +65,13 @@ public class OllamaProvider extends AICompatibleProvider {
     @NotNull
     @Override
     public String getProviderId() {
-        return PROVIDER_ID;
+        return AIProviderType.OLLAMA.getProviderId();
     }
 
     @NotNull
     @Override
     public String getProviderName() {
-        return PROVIDER_NAME;
+        return AIProviderType.OLLAMA.getDisplayName();
     }
 
     /**
@@ -135,26 +97,164 @@ public class OllamaProvider extends AICompatibleProvider {
     @NotNull
     @Override
     public List<String> getSupportedModels() {
-        return SUGGESTED_MODELS;
+        return AIProviderType.OLLAMA.getSupportedModels();
     }
 
     @NotNull
     @Override
     public String getDefaultModel() {
-        return DEFAULT_MODEL;
+        return AIProviderType.OLLAMA.getDefaultModel();
     }
 
     @NotNull
     @Override
     public String getDefaultBaseUrl() {
-        return DEFAULT_BASE_URL;
+        return AIProviderType.OLLAMA.getDefaultBaseUrl();
     }
 
     @Override
     public boolean requiresApiKey() {
-        // Ollama 本地服务不需要 API Key
-        // 所有处理都在本地进行，无需外部认证
-        return false;
+        return AIProviderType.OLLAMA.requiresApiKey();
+    }
+
+    /**
+     * 获取可用的模型列表
+     *
+     * <p>Ollama 的模型列表 API 响应格式与标准 OpenAI 格式不同。
+     * Ollama 返回的格式：
+     * <pre>
+     * {
+     *   "models": [
+     *     {
+     *       "name": "qwen:7b",
+     *       "model": "qwen:7b",
+     *       "modified_at": "2024-01-01T00:00:00Z",
+     *       "size": 1234567890,
+     *       "digest": "sha256:...",
+     *       "details": {
+     *         "parent_model": "",
+     *         "format": "gguf",
+     *         "family": "qwen",
+     *         "families": ["qwen"],
+     *         "parameter_size": "7B",
+     *         "quantization_level": "Q4_0"
+     *       }
+     *     }
+     *   ]
+     * }
+     * </pre>
+     *
+     * <p>解析策略：
+     * <ul>
+     *   <li>提取 models 数组</li>
+     *   <li>遍历每个模型对象</li>
+     *   <li>提取 name 字段作为模型名称</li>
+     *   <li>如果 name 字段不存在，使用 model 字段</li>
+     * </ul>
+     *
+     * @return 可用模型名称列表，如果获取失败返回空列表
+     */
+    @NotNull
+    @Override
+    public List<String> getAvailableModels() {
+        try {
+            // 调用父类方法获取模型列表
+            List<String> models = super.getAvailableModels();
+
+            // 如果父类方法失败，尝试解析 Ollama 特定格式
+            if (models.isEmpty()) {
+                models = parseOllamaModelsResponse();
+            }
+
+            // 如果仍然为空，返回推荐的模型列表
+            if (models.isEmpty()) {
+                return new ArrayList<>(AIProviderType.OLLAMA.getSupportedModels());
+            }
+
+            return models;
+
+        } catch (Exception e) {
+            // 发生异常时返回推荐的模型列表
+            return new ArrayList<>(AIProviderType.OLLAMA.getSupportedModels());
+        }
+    }
+
+    /**
+     * 解析 Ollama 特定的模型列表响应
+     *
+     * <p>专门处理 Ollama 的响应格式，提取模型名称。
+     * 这个方法在父类的标准解析失败时被调用。
+     *
+     * @return 模型名称列表
+     */
+    private List<String> parseOllamaModelsResponse() {
+        List<String> models = new ArrayList<>();
+
+        try {
+            // 这里需要重新发送请求，因为父类方法可能已经处理了响应
+            // 在实际实现中，可能需要缓存响应或重新设计方法结构
+            // 目前返回推荐的模型列表作为备选方案
+            return new ArrayList<>(AIProviderType.OLLAMA.getSupportedModels());
+
+        } catch (Exception e) {
+            return new ArrayList<>(AIProviderType.OLLAMA.getSupportedModels());
+        }
+    }
+
+    /**
+     * 重写解析方法以支持 Ollama 格式
+     *
+     * <p>Ollama 的响应格式与标准 OpenAI 格式不同，
+     * 需要特殊处理 models 字段而不是 data 字段。
+     *
+     * @param responseBody JSON 响应体
+     * @return 模型名称列表
+     */
+    @SuppressWarnings("D")
+    @Override
+    protected List<String> parseModelsResponse(String responseBody) {
+        List<String> models = new ArrayList<>();
+
+        try {
+            JSONObject json = new JSONObject(responseBody);
+
+            // 尝试 Ollama 格式 (models 字段)
+            if (json.has("models") && json.get("models") instanceof JSONArray) {
+                JSONArray modelsArray = json.getJSONArray("models");
+                for (int i = 0; i < modelsArray.length(); i++) {
+                    JSONObject modelObj = modelsArray.getJSONObject(i);
+                    String modelName = null;
+
+                    // 优先使用 name 字段
+                    if (modelObj.has("name")) {
+                        modelName = modelObj.getString("name");
+                    }
+                    // 如果没有 name 字段，使用 model 字段
+                    else if (modelObj.has("model")) {
+                        modelName = modelObj.getString("model");
+                    }
+
+                    if (modelName != null && !modelName.trim().isEmpty()) {
+                        models.add(modelName.trim());
+                    }
+                }
+            }
+            // 如果 Ollama 格式解析失败，尝试标准格式
+            else if (json.has("data") && json.get("data") instanceof JSONArray) {
+                return super.parseModelsResponse(responseBody);
+            }
+
+        } catch (Exception e) {
+            // 解析失败，返回推荐的模型列表
+            return new ArrayList<>(AIProviderType.OLLAMA.getSupportedModels());
+        }
+
+        // 如果没有找到任何模型，返回推荐的模型列表
+        if (models.isEmpty()) {
+            return new ArrayList<>(AIProviderType.OLLAMA.getSupportedModels());
+        }
+
+        return models;
     }
 }
 

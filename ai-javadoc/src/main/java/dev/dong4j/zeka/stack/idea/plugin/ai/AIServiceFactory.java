@@ -51,12 +51,12 @@ public class AIServiceFactory {
 
     static {
         // 注册所有支持的提供商
-        PROVIDERS.put("qianwen", QianWenProvider.class);
-        PROVIDERS.put("ollama", OllamaProvider.class);
-        PROVIDERS.put("custom", CustomProvider.class);
+        PROVIDERS.put(AIProviderType.QIANWEN.getProviderId(), QianWenProvider.class);
+        PROVIDERS.put(AIProviderType.OLLAMA.getProviderId(), OllamaProvider.class);
+        PROVIDERS.put(AIProviderType.CUSTOM.getProviderId(), CustomProvider.class);
         // 未来可以添加更多提供商
-        // PROVIDERS.put("openai", OpenAIProvider.class);
-        // PROVIDERS.put("claude", ClaudeProvider.class);
+        // PROVIDERS.put(AIProviderType.OPENAI.getProviderId(), OpenAIProvider.class);
+        // PROVIDERS.put(AIProviderType.CLAUDE.getProviderId(), ClaudeProvider.class);
     }
 
     /**
@@ -97,7 +97,8 @@ public class AIServiceFactory {
 
         Class<? extends AIServiceProvider> providerClass = PROVIDERS.get(providerId);
         if (providerClass == null) {
-            String error = "不支持的 AI 提供商: " + providerId + "。当前支持的提供商：qianwen, ollama, custom";
+            String supportedProviders = String.join(", ", AIProviderType.getAllProviderIds());
+            String error = "不支持的 AI 提供商: " + providerId + "。当前支持的提供商：" + supportedProviders;
             com.intellij.openapi.diagnostic.Logger.getInstance(AIServiceFactory.class).error(error);
             return null;
         }
@@ -145,7 +146,7 @@ public class AIServiceFactory {
      *   <li>动态功能启用控制</li>
      * </ul>
      *
-     * @param providerId 提供商 ID，如 "qianwen", "ollama"
+     * @param providerId 提供商 ID，如 QIANWEN, OLLAMA
      * @return 如果支持返回 true，否则返回 false
      */
     public static boolean isProviderSupported(@NotNull String providerId) {
@@ -157,15 +158,20 @@ public class AIServiceFactory {
      *
      * <p>根据提供商 ID 获取对应的显示名称，
      * 用于 UI 界面显示和用户友好提示。
-     * 通过创建临时实例调用 getProviderName() 方法获取名称。
+     * 通过枚举直接获取显示名称，性能更好。
      *
-     * <p>注意：此方法会创建临时实例，频繁调用可能影响性能。
-     * 在未来版本中可以考虑优化实现。
+     * <p>实现优化：
+     * <ul>
+     *   <li>使用枚举直接获取显示名称</li>
+     *   <li>避免创建临时实例，提高性能</li>
+     *   <li>类型安全，避免运行时错误</li>
+     * </ul>
      *
      * <p>返回示例：
      * <ul>
      *   <li>qianwen → "通义千问 (QianWen)"</li>
      *   <li>ollama → "Ollama (本地)"</li>
+     *   <li>custom → "自定义服务 (OpenAI 兼容)"</li>
      * </ul>
      *
      * @param providerId 提供商 ID
@@ -173,20 +179,14 @@ public class AIServiceFactory {
      */
     @NotNull
     public static String getProviderName(@NotNull String providerId) {
-        // 创建临时实例获取名称（未来可以优化）
-        try {
-            SettingsState tempSettings = new SettingsState();
-            tempSettings.aiProvider = providerId;
-            // 临时允许创建未验证的提供商用于获取显示名称
-            tempSettings.configurationVerified = true;
-            AIServiceProvider provider = createProvider(tempSettings);
-            if (provider == null) {
-                return providerId;
-            }
-            return provider.getProviderName();
-        } catch (Exception e) {
-            return providerId;
+        // 使用枚举获取显示名称，避免创建临时实例
+        AIProviderType providerType = AIProviderType.fromProviderId(providerId);
+        if (providerType != null) {
+            return providerType.getDisplayName();
         }
+
+        // 如果枚举中没有找到，返回原始ID
+        return providerId;
     }
 
     /**

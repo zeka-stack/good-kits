@@ -15,6 +15,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
@@ -54,6 +56,7 @@ import dev.dong4j.zeka.stack.idea.plugin.task.DocumentationTask;
  * @version 1.0.0
  * @since 1.0.0
  */
+@SuppressWarnings("LoggingSimilarMessage")
 public abstract class AICompatibleProvider implements AIServiceProvider {
 
     private static final Logger LOG = Logger.getInstance(AICompatibleProvider.class);
@@ -363,8 +366,10 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
 
         JSONObject body = new JSONObject();
         body.put("model", settings.modelName);
-        // 关闭所有模型的 think 模式, 但有些接口还是会返回 think 数据, 所以需要对响应结果进行处理
+        // ollama 的参数
         body.put("think", false);
+        // openapi 兼容的参数
+        body.put("enable_thinking", false);
         // 关闭流式输出
         body.put("stream", false);
         body.put("messages", new Object[] {systemMessage, userMessage});
@@ -703,6 +708,141 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
         }
 
         return details != null ? details : "未知错误";
+    }
+
+    /**
+     * 获取可用的模型列表
+     *
+     * <p>通过调用提供商的 API 接口获取当前可用的模型列表。
+     * 默认实现调用 /models 端点获取模型列表。
+     * 子类可以重写此方法以支持特定的 API 格式。
+     *
+     * <p>实现策略：
+     * <ul>
+     *   <li>发送 GET 请求到 {baseUrl}/models</li>
+     *   <li>解析 JSON 响应获取模型列表</li>
+     *   <li>处理各种异常情况</li>
+     *   <li>失败时返回空列表</li>
+     * </ul>
+     *
+     * <p>错误处理：
+     * <ul>
+     *   <li>网络异常：记录日志，返回空列表</li>
+     *   <li>认证失败：记录日志，返回空列表</li>
+     *   <li>响应格式错误：记录日志，返回空列表</li>
+     *   <li>超时：记录日志，返回空列表</li>
+     * </ul>
+     *
+     * @return 可用模型名称列表，如果获取失败返回空列表
+     */
+    @NotNull
+    @Override
+    public List<String> getAvailableModels() {
+        try {
+            if (settings.verboseLogging) {
+                LOG.debug("Fetching available models from provider: " + getProviderId());
+                LOG.debug("Base URL: " + settings.baseUrl);
+            }
+
+            HttpHeaders headers = buildHeaders();
+            if (headers == null) {
+                LOG.warn("Failed to build headers for model list request");
+                return new ArrayList<>();
+            }
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            String url = settings.baseUrl + "/models";
+
+            if (settings.verboseLogging) {
+                LOG.debug("Requesting models from: " + url);
+            }
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                url, HttpMethod.GET, entity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                List<String> models = parseModelsResponse(response.getBody());
+
+                if (settings.verboseLogging) {
+                    LOG.debug("Successfully fetched " + models.size() + " models");
+                }
+
+                return models;
+            }
+
+            LOG.warn("Failed to fetch models: HTTP " + response.getStatusCode());
+            return new ArrayList<>();
+
+        } catch (HttpClientErrorException e) {
+            LOG.warn("HTTP client error while fetching models: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
+            return new ArrayList<>();
+        } catch (HttpServerErrorException e) {
+            LOG.warn("HTTP server error while fetching models: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
+            return new ArrayList<>();
+        } catch (ResourceAccessException e) {
+            LOG.warn("Network error while fetching models: " + e.getMessage());
+            return new ArrayList<>();
+        } catch (Exception e) {
+            LOG.warn("Unexpected error while fetching models", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 解析模型列表响应
+     *
+     * <p>解析 AI 服务返回的模型列表 JSON 响应。
+     * 默认实现支持标准的 OpenAI 兼容格式。
+     * 子类可以重写此方法以支持特定的响应格式。
+     *
+     * <p>标准响应格式：
+     * <pre>
+     * {
+     *   "data": [
+     *     {
+     *       "id": "model-name",
+     *       "object": "model",
+     *       "created": 1234567890,
+     *       "owned_by": "provider"
+     *     }
+     *   ],
+     *   "object": "list"
+     * }
+     * </pre>
+     *
+     * <p>解析逻辑：
+     * <ul>
+     *   <li>提取 data 数组</li>
+     *   <li>遍历每个模型对象</li>
+     *   <li>提取 id 字段作为模型名称</li>
+     *   <li>过滤掉无效的模型名称</li>
+     * </ul>
+     *
+     * @param responseBody JSON 响应体
+     * @return 模型名称列表
+     */
+    protected List<String> parseModelsResponse(String responseBody) {
+        List<String> models = new ArrayList<>();
+
+        try {
+            JSONObject json = new JSONObject(responseBody);
+            if (json.has("data") && json.get("data") instanceof org.json.JSONArray) {
+                org.json.JSONArray dataArray = json.getJSONArray("data");
+                for (int i = 0; i < dataArray.length(); i++) {
+                    JSONObject modelObj = dataArray.getJSONObject(i);
+                    if (modelObj.has("id")) {
+                        String modelId = modelObj.getString("id");
+                        if (modelId != null && !modelId.trim().isEmpty()) {
+                            models.add(modelId.trim());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to parse models response: " + responseBody, e);
+        }
+
+        return models;
     }
 }
 

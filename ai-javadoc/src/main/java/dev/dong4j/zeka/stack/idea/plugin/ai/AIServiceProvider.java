@@ -118,7 +118,7 @@ public interface AIServiceProvider {
      *   <li>与提供商名称保持一致</li>
      * </ul>
      *
-     * @return 提供商标识符，如 "qianwen", "ollama", "openai"
+     * @return 提供商标识符，如 QIANWEN, OLLAMA, CUSTOM
      */
     @NotNull
     String getProviderId();
@@ -197,6 +197,41 @@ public interface AIServiceProvider {
      */
     @NotNull
     String getDefaultBaseUrl();
+
+    /**
+     * 获取可用的模型列表
+     *
+     * <p>通过调用提供商的 API 接口获取当前可用的模型列表。
+     * 这个方法会实际调用远程服务，获取最新的模型信息。
+     * 与 getSupportedModels() 不同，这个方法返回的是实时数据。
+     *
+     * <p>使用场景：
+     * <ul>
+     *   <li>用户配置 Base URL 和 API Key 后，动态获取可用模型</li>
+     *   <li>验证模型名称是否有效</li>
+     *   <li>提供最新的模型选择列表</li>
+     * </ul>
+     *
+     * <p>实现要求：
+     * <ul>
+     *   <li>必须处理网络异常和超时</li>
+     *   <li>必须处理 API 认证失败</li>
+     *   <li>必须处理响应格式错误</li>
+     *   <li>失败时应该返回空列表而不是抛出异常</li>
+     * </ul>
+     *
+     * <p>不同提供商的 API 接口：
+     * <ul>
+     *   <li>Ollama: GET {baseUrl}/models</li>
+     *   <li>OpenAI: GET {baseUrl}/models</li>
+     *   <li>通义千问: GET {baseUrl}/models</li>
+     * </ul>
+     *
+     * @return 可用模型名称列表，如果获取失败返回空列表
+     * @see #getSupportedModels()
+     */
+    @NotNull
+    List<String> getAvailableModels();
 
     /**
      * 是否需要 API Key

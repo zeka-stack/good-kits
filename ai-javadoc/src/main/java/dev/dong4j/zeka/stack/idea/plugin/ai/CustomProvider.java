@@ -2,7 +2,6 @@ package dev.dong4j.zeka.stack.idea.plugin.ai;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
 import java.util.List;
 
 import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
@@ -29,7 +28,7 @@ import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
  *
  * <p>配置步骤：
  * <ol>
- *   <li>在设置中选择 "custom" 作为 AI Provider</li>
+ *   <li>在设置中选择 CUSTOM 作为 AI Provider</li>
  *   <li>输入 Base URL（如：<a href="https://api.openai.com/v1">...</a>）</li>
  *   <li>输入 API Key</li>
  *   <li>输入模型名称（如：gpt-3.5-turbo, gpt-4 等）</li>
@@ -59,51 +58,6 @@ import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
  */
 public class CustomProvider extends AICompatibleProvider {
 
-    private static final String PROVIDER_ID = "custom";
-    private static final String PROVIDER_NAME = "自定义服务 (OpenAI 兼容)";
-    private static final String DEFAULT_BASE_URL = "https://api.openai.com/v1";
-    private static final String DEFAULT_MODEL = "gpt-3.5-turbo";
-
-    /**
-     * 推荐的常用模型列表（仅作为参考）
-     * 用户可以使用任何服务提供商支持的模型
-     *
-     * <p>模型分类：
-     * <ul>
-     *   <li>OpenAI 系列：GPT-3.5 和 GPT-4 系列</li>
-     *   <li>Azure OpenAI：部署在 Azure 上的 OpenAI 模型</li>
-     *   <li>其他兼容服务：各种第三方或自部署的模型</li>
-     * </ul>
-     *
-     * <p>选择建议：
-     * <ul>
-     *   <li>代码文档生成：推荐 gpt-3.5-turbo 或 gpt-4</li>
-     *   <li>高质量输出：推荐 gpt-4 系列</li>
-     *   <li>成本优化：推荐 gpt-3.5-turbo</li>
-     * </ul>
-     *
-     * <p>注意：模型列表会随服务提供商更新而变化，
-     * 建议查看服务提供商文档获取最新信息。
-     */
-    private static final List<String> SUGGESTED_MODELS = Arrays.asList(
-        // OpenAI 系列
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-16k",
-        "gpt-4",
-        "gpt-4-turbo",
-        "gpt-4-turbo-preview",
-        "gpt-4-32k",
-
-        // Azure OpenAI 系列（示例）
-        "gpt-35-turbo",
-        "gpt-4",
-
-        // 其他兼容服务（示例）
-        "claude-3-sonnet",
-        "claude-3-opus",
-        "gemini-pro"
-                                                                      );
-
     public CustomProvider(SettingsState settings) {
         super(settings);
     }
@@ -111,13 +65,13 @@ public class CustomProvider extends AICompatibleProvider {
     @NotNull
     @Override
     public String getProviderId() {
-        return PROVIDER_ID;
+        return AIProviderType.CUSTOM.getProviderId();
     }
 
     @NotNull
     @Override
     public String getProviderName() {
-        return PROVIDER_NAME;
+        return AIProviderType.CUSTOM.getDisplayName();
     }
 
     /**
@@ -143,7 +97,7 @@ public class CustomProvider extends AICompatibleProvider {
     @NotNull
     @Override
     public List<String> getSupportedModels() {
-        return SUGGESTED_MODELS;
+        return AIProviderType.CUSTOM.getSupportedModels();
     }
 
     /**
@@ -163,7 +117,7 @@ public class CustomProvider extends AICompatibleProvider {
     @NotNull
     @Override
     public String getDefaultModel() {
-        return DEFAULT_MODEL;
+        return AIProviderType.CUSTOM.getDefaultModel();
     }
 
     /**
@@ -183,7 +137,7 @@ public class CustomProvider extends AICompatibleProvider {
     @NotNull
     @Override
     public String getDefaultBaseUrl() {
-        return DEFAULT_BASE_URL;
+        return AIProviderType.CUSTOM.getDefaultBaseUrl();
     }
 
     /**
@@ -196,7 +150,7 @@ public class CustomProvider extends AICompatibleProvider {
      */
     @Override
     public boolean requiresApiKey() {
-        return true;
+        return AIProviderType.CUSTOM.requiresApiKey();
     }
 
     /**

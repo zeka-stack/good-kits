@@ -27,7 +27,7 @@ public class AIServiceFactoryTest {
     @Test
     @DisplayName("测试创建千问提供商")
     void testCreateProvider_qianwen() {
-        settings.aiProvider = "qianwen";
+        settings.aiProvider = AIProviderType.QIANWEN.getProviderId();
         settings.modelName = "qwen-max";
         settings.baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         settings.apiKey = "test-api-key";
@@ -36,13 +36,13 @@ public class AIServiceFactoryTest {
 
         assertThat(provider).isNotNull();
         assertThat(provider).isInstanceOf(QianWenProvider.class);
-        assertThat(provider.getProviderId()).isEqualTo("qianwen");
+        assertThat(provider.getProviderId()).isEqualTo(AIProviderType.QIANWEN.getProviderId());
     }
 
     @Test
     @DisplayName("测试创建 Ollama 提供商")
     void testCreateProvider_ollama() {
-        settings.aiProvider = "ollama";
+        settings.aiProvider = AIProviderType.OLLAMA.getProviderId();
         settings.modelName = "llama2";
         settings.baseUrl = "http://localhost:11434";
         settings.apiKey = "";
@@ -51,7 +51,7 @@ public class AIServiceFactoryTest {
 
         assertThat(provider).isNotNull();
         assertThat(provider).isInstanceOf(OllamaProvider.class);
-        assertThat(provider.getProviderId()).isEqualTo("ollama");
+        assertThat(provider.getProviderId()).isEqualTo(AIProviderType.OLLAMA.getProviderId());
     }
 
     @Test
@@ -81,19 +81,19 @@ public class AIServiceFactoryTest {
 
         assertThat(providers).isNotNull();
         assertThat(providers).isNotEmpty();
-        assertThat(providers).contains("qianwen", "ollama");
+        assertThat(providers).contains(AIProviderType.QIANWEN.getProviderId(), AIProviderType.OLLAMA.getProviderId());
     }
 
     @Test
     @DisplayName("测试检查提供商是否支持 - 千问")
     void testIsProviderSupported_qianwen() {
-        assertThat(AIServiceFactory.isProviderSupported("qianwen")).isTrue();
+        assertThat(AIServiceFactory.isProviderSupported(AIProviderType.QIANWEN.getProviderId())).isTrue();
     }
 
     @Test
     @DisplayName("测试检查提供商是否支持 - Ollama")
     void testIsProviderSupported_ollama() {
-        assertThat(AIServiceFactory.isProviderSupported("ollama")).isTrue();
+        assertThat(AIServiceFactory.isProviderSupported(AIProviderType.OLLAMA.getProviderId())).isTrue();
     }
 
     @Test
@@ -119,17 +119,19 @@ public class AIServiceFactoryTest {
     @Test
     @DisplayName("测试获取提供商名称 - 千问")
     void testGetProviderName_qianwen() {
-        String name = AIServiceFactory.getProviderName("qianwen");
+        String name = AIServiceFactory.getProviderName(AIProviderType.QIANWEN.getProviderId());
         assertThat(name).isNotNull();
         assertThat(name).isNotEmpty();
+        assertThat(name).isEqualTo(AIProviderType.QIANWEN.getDisplayName());
     }
 
     @Test
     @DisplayName("测试获取提供商名称 - Ollama")
     void testGetProviderName_ollama() {
-        String name = AIServiceFactory.getProviderName("ollama");
+        String name = AIServiceFactory.getProviderName(AIProviderType.OLLAMA.getProviderId());
         assertThat(name).isNotNull();
         assertThat(name).isNotEmpty();
+        assertThat(name).isEqualTo(AIProviderType.OLLAMA.getDisplayName());
     }
 
     @Test
@@ -143,14 +145,14 @@ public class AIServiceFactoryTest {
     @Test
     @DisplayName("测试创建的提供商实例配置正确 - 千问")
     void testCreatedProvider_hasCorrectConfiguration_qianwen() {
-        settings.aiProvider = "qianwen";
+        settings.aiProvider = AIProviderType.QIANWEN.getProviderId();
         settings.modelName = "qwen-max";
         settings.baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         settings.apiKey = "test-api-key";
 
         AIServiceProvider provider = AIServiceFactory.createProvider(settings);
 
-        assertThat(provider.getProviderId()).isEqualTo("qianwen");
+        assertThat(provider.getProviderId()).isEqualTo(AIProviderType.QIANWEN.getProviderId());
         assertThat(provider.getProviderName()).isNotEmpty();
         assertThat(provider.requiresApiKey()).isTrue();
         assertThat(provider.getDefaultModel()).isNotEmpty();
@@ -161,14 +163,14 @@ public class AIServiceFactoryTest {
     @Test
     @DisplayName("测试创建的提供商实例配置正确 - Ollama")
     void testCreatedProvider_hasCorrectConfiguration_ollama() {
-        settings.aiProvider = "ollama";
+        settings.aiProvider = AIProviderType.OLLAMA.getProviderId();
         settings.modelName = "llama2";
         settings.baseUrl = "http://localhost:11434";
         settings.apiKey = "";
 
         AIServiceProvider provider = AIServiceFactory.createProvider(settings);
 
-        assertThat(provider.getProviderId()).isEqualTo("ollama");
+        assertThat(provider.getProviderId()).isEqualTo(AIProviderType.OLLAMA.getProviderId());
         assertThat(provider.getProviderName()).isNotEmpty();
         assertThat(provider.requiresApiKey()).isFalse();
         assertThat(provider.getDefaultModel()).isNotEmpty();
@@ -179,7 +181,7 @@ public class AIServiceFactoryTest {
     @Test
     @DisplayName("测试多次创建提供商实例")
     void testCreateMultipleInstances() {
-        settings.aiProvider = "qianwen";
+        settings.aiProvider = AIProviderType.QIANWEN.getProviderId();
         settings.modelName = "qwen-max";
         settings.baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         settings.apiKey = "test-api-key";
@@ -197,22 +199,22 @@ public class AIServiceFactoryTest {
     @DisplayName("测试切换提供商")
     void testSwitchProviders() {
         // 创建千问提供商
-        settings.aiProvider = "qianwen";
+        settings.aiProvider = AIProviderType.QIANWEN.getProviderId();
         settings.modelName = "qwen-max";
         settings.baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         settings.apiKey = "test-api-key";
         AIServiceProvider qianwenProvider = AIServiceFactory.createProvider(settings);
 
-        assertThat(qianwenProvider.getProviderId()).isEqualTo("qianwen");
+        assertThat(qianwenProvider.getProviderId()).isEqualTo(AIProviderType.QIANWEN.getProviderId());
 
         // 切换到 Ollama
-        settings.aiProvider = "ollama";
+        settings.aiProvider = AIProviderType.OLLAMA.getProviderId();
         settings.modelName = "llama2";
         settings.baseUrl = "http://localhost:11434";
         settings.apiKey = "";
         AIServiceProvider ollamaProvider = AIServiceFactory.createProvider(settings);
 
-        assertThat(ollamaProvider.getProviderId()).isEqualTo("ollama");
+        assertThat(ollamaProvider.getProviderId()).isEqualTo(AIProviderType.OLLAMA.getProviderId());
         assertThat(ollamaProvider.getClass()).isNotEqualTo(qianwenProvider.getClass());
     }
 
@@ -231,7 +233,7 @@ public class AIServiceFactoryTest {
 
         assertThat(providers)
             .isNotNull()
-            .contains("qianwen", "ollama");
+            .contains(AIProviderType.QIANWEN.getProviderId(), AIProviderType.OLLAMA.getProviderId());
     }
 }
 

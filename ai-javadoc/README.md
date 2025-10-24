@@ -1,5 +1,7 @@
 # IntelliJ AI Javadoc Plugin
 
+[中文](./README_CN.md) | **English**
+
 The IntelliJ AI Javadoc Plugin is a powerful tool that utilizes artificial intelligence to generate JavaDoc comments for your Java code. It
 supports multiple AI service providers including QianWen (Alibaba Cloud) and Ollama local models, providing intelligent and context-aware
 suggestions for documenting your methods, classes, and interfaces.
