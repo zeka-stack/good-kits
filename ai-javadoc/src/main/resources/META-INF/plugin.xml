@@ -1,0 +1,112 @@
+<!-- 插件配置文件。更多信息：https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <!-- 插件的唯一标识符。应该是完全限定名。在插件版本之间不能更改。 -->
+    <id>dev.dong4j.zeka.stack.idea.plugin</id>
+
+    <!-- 公共插件名称应使用标题大小写书写。
+         指南：https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
+    <name>AI Javadoc</name>
+
+    <!-- 在插件页面上显示的供应商名称或组织ID。 -->
+    <vendor email="dong4j@gmail.com">dong4j</vendor>
+
+    <!-- 在插件页面和IDE插件管理器中显示的插件描述。
+         可以在 <![CDATA[ ]]> 标签内添加简单的HTML元素（文本格式、段落和列表）。
+         指南：https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
+    <description><![CDATA[
+        <h2>AI Javadoc: You Know, for Javaer, Fun</h2>
+        <p>使用 AI 为 Java 项目自动生成高质量的 JavaDoc 注释。</p>
+
+        <h3>核心功能</h3>
+        <ul>
+            <li><b>多种 AI 提供商支持</b>：支持通义千问、Ollama 等多种 AI 服务</li>
+            <li><b>灵活的触发方式</b>：可通过快捷键、右键菜单、Generate 菜单等多种方式触发</li>
+            <li><b>批量处理</b>：支持为整个文件、目录批量生成文档</li>
+            <li><b>智能识别</b>：自动识别类、方法、测试方法等不同元素</li>
+            <li><b>异步处理</b>：后台处理，不阻塞 IDE</li>
+            <li><b>进度显示</b>：实时显示处理进度和结果统计</li>
+        </ul>
+
+        <h3>使用方式</h3>
+        <ul>
+            <li>快捷键：Ctrl+Shift+D (Windows/Linux) 或 Cmd+Shift+D (Mac)</li>
+            <li>编辑器右键菜单 → Generate JavaDoc with AI</li>
+            <li>文件/目录右键菜单 → Generate JavaDoc with AI</li>
+            <li>Generate 菜单：Cmd+N / Alt+Insert → JavaDoc with AI</li>
+            <li>快速修复：Option+Enter / Alt+Enter → Generate JavaDoc with AI</li>
+        </ul>
+
+        <h3>配置说明</h3>
+        <p>配置路径：Settings → Tools → AI Javadoc</p>
+        <ul>
+            <li>选择 AI 提供商（通义千问/Ollama）</li>
+            <li>配置模型和 API Key</li>
+            <li>自定义生成选项</li>
+        </ul>
+    ]]></description>
+
+    <!-- 产品和插件兼容性要求。
+         更多信息：https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <!-- 国际化资源文件 -->
+    <resource-bundle>messages</resource-bundle>
+
+    <!-- 插件定义的扩展点。
+         更多信息：https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- 配置持久化 -->
+        <applicationService serviceImplementation="dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState"/>
+
+        <!-- 设置面板 -->
+        <projectConfigurable
+                parentId="tools"
+                instance="dev.dong4j.zeka.stack.idea.plugin.settings.JavaDocSettingsConfigurable"
+                id="dev.dong4j.zeka.stack.idea.plugin.settings.JavaDocSettingsConfigurable"
+                displayName="AI Javadoc"/>
+
+        <!-- 通知组 dev.dong4j.zeka.stack.idea.plugin.util.NotificationUtil.NOTIFICATION_GROUP_ID 保持一致 -->
+        <notificationGroup id="AI Javadoc Notifications"
+                           displayType="BALLOON"
+                           isLogByDefault="true"/>
+
+        <!-- Intention Action (Option+Enter / Alt+Enter 快捷菜单) -->
+        <intentionAction>
+            <language>JAVA</language>
+            <className>dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocIntentionAction</className>
+            <category>AI Javadoc</category>
+            <descriptionDirectoryName>GenerateJavaDocIntention</descriptionDirectoryName>
+        </intentionAction>
+    </extensions>
+
+    <!-- 插件定义的动作 -->
+    <actions>
+        <!-- 快捷键入口 (Ctrl+Shift+D / Cmd+Shift+D) -->
+        <action id="dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocShortcutAction"
+                class="dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocShortcutAction">
+            <keyboard-shortcut keymap="$default" first-keystroke="shift ctrl D"/>
+        </action>
+
+        <!-- 编辑器右键菜单 -->
+        <action id="dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocForFileAction"
+                class="dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocForFileAction"
+                icon="AllIcons.Actions.IntentionBulb">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- 项目视图右键菜单 -->
+        <action id="dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocForSelectionAction"
+                class="dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocForSelectionAction"
+                icon="AllIcons.Actions.IntentionBulb">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- Generate 菜单 (Command+N / Alt+Insert) -->
+        <action id="dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocGenerateAction"
+                class="dev.dong4j.zeka.stack.idea.plugin.action.GenerateJavaDocGenerateAction"
+                icon="AllIcons.Actions.IntentionBulb">
+            <add-to-group group-id="GenerateGroup" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

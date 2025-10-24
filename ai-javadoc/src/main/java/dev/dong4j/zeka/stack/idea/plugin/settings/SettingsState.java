@@ -1,0 +1,804 @@
+package dev.dong4j.zeka.stack.idea.plugin.settings;
+
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.components.PersistentStateComponent;
+import com.intellij.openapi.components.State;
+import com.intellij.openapi.components.Storage;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
+import com.intellij.util.xmlb.XmlSerializerUtil;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import dev.dong4j.zeka.stack.idea.plugin.ai.AICompatibleProvider;
+import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceFactory;
+import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceProvider;
+import dev.dong4j.zeka.stack.idea.plugin.ai.OllamaProvider;
+import dev.dong4j.zeka.stack.idea.plugin.task.DocumentationTask;
+import dev.dong4j.zeka.stack.idea.plugin.task.TaskCollector;
+
+/**
+ * 插件配置状态
+ *
+ * <p>使用 IntelliJ Platform 的持久化组件机制保存和加载配置。
+ * 配置将保存在 IDE 的配置目录中的 JavaDocAI.xml 文件中。
+ * 作为插件的核心配置管理类，负责所有用户设置的存储和访问。
+ *
+ * <p>配置包括：
+ * <ul>
+ *   <li>AI 服务提供商设置</li>
+ *   <li>模型配置</li>
+ *   <li>语言支持</li>
+ *   <li>高级选项</li>
+ *   <li>Prompt 模板配置</li>
+ * </ul>
+ *
+ * <p>设计模式：
+ * <ul>
+ *   <li>单例模式：通过 getInstance() 获取全局唯一实例</li>
+ *   <li>持久化模式：实现 PersistentStateComponent 接口</li>
+ *   <li>配置分组：按功能将配置项分组管理</li>
+ * </ul>
+ *
+ * @author dong4j
+ * @version 1.0.0
+ * @see PersistentStateComponent
+ * @see State
+ * @see Storage
+ * @since 1.0.0
+ */
+@State(
+    name = "JavaDocAISettings",
+    storages = @Storage("JavaDocAI.xml")
+)
+public class SettingsState implements PersistentStateComponent<SettingsState> {
+
+    // ==================== AI 提供商配置 ====================
+
+    /**
+     * AI 服务提供商 ID
+     *
+     * <p>标识当前使用的 AI 服务提供商。
+     * 决定使用哪个 AIServiceProvider 实现。
+     *
+     * <p>支持的值:
+     * <ul>
+     *   <li>"qianwen": 通义千问服务</li>
+     *   <li>"ollama": Ollama 本地服务</li>
+     * </ul>
+     *
+     * <p>默认值: "qianwen"
+     *
+     * @see AIServiceFactory#createProvider(SettingsState)
+     */
+    public String aiProvider = "qianwen";
+
+    /**
+     * 模型名称
+     *
+     * <p>指定使用的 AI 模型名称。
+     * 不同的提供商支持不同的模型。
+     *
+     * <p>默认值: "qwen-max" (通义千问最大模型)
+     *
+     * @see AIServiceProvider#getSupportedModels()
+     */
+    public String modelName = "qwen-max";
+
+    /**
+     * API Base URL
+     *
+     * <p>AI 服务的 API 基础地址。
+     * 不同提供商有不同的默认地址。
+     *
+     * <p>默认值: "<a href="https://dashscope.aliyuncs.com/compatible-mode/v1">...</a>" (通义千问)
+     *
+     * @see AIServiceProvider#getDefaultBaseUrl()
+     */
+    public String baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+
+    /**
+     * API Key
+     *
+     * <p>访问 AI 服务所需的 API 密钥。
+     * 某些本地服务（如 Ollama）不需要此密钥。
+     *
+     * <p>安全考虑:
+     * <ul>
+     *   <li>敏感信息，应谨慎处理</li>
+     *   <li>建议使用 PasswordSafe 存储（未来优化）</li>
+     *   <li>在日志中应脱敏显示</li>
+     * </ul>
+     *
+     * <p>默认值: "" (空字符串)
+     *
+     * @see AIServiceProvider#requiresApiKey()
+     */
+    public String apiKey = "";
+
+    /**
+     * 配置是否已通过测试验证
+     *
+     * <p>标记当前配置是否已通过连接测试。
+     * 只有通过测试的配置才能被用于生成文档。
+     *
+     * <p>验证要求:
+     * <ul>
+     *   <li>API Key 有效（如果需要）</li>
+     *   <li>Base URL 可访问</li>
+     *   <li>模型可用</li>
+     *   <li>能够成功调用 AI 服务</li>
+     * </ul>
+     *
+     * <p>状态管理:
+     * <ul>
+     *   <li>测试成功时设置为 true</li>
+     *   <li>修改关键配置时重置为 false</li>
+     *   <li>初始状态为 false</li>
+     * </ul>
+     *
+     * <p>默认值: false
+     *
+     * @see #isValid()
+     */
+    public boolean configurationVerified = false;
+
+    // ==================== 功能配置 ====================
+
+    /**
+     * 支持的编程语言
+     *
+     * <p>插件支持的编程语言集合。
+     * 目前只支持 Java，未来可扩展到 Kotlin, Python 等。
+     *
+     * <p>设计考虑:
+     * <ul>
+     *   <li>使用 Set 避免重复</li>
+     *   <li>默认包含 "java"</li>
+     *   <li>支持动态添加新语言</li>
+     * </ul>
+     *
+     * <p>默认值: {"java"}
+     *
+     * @see #isLanguageSupported(String)
+     */
+    public Set<String> supportedLanguages = new HashSet<String>() {{
+        add("java");
+    }};
+
+    /**
+     * 是否为类生成文档
+     *
+     * <p>控制是否为类元素生成 JavaDoc 文档。
+     * 用户可在设置界面中切换。
+     *
+     * <p>默认值: true
+     */
+    public boolean generateForClass = true;
+
+    /**
+     * 是否为方法生成文档
+     *
+     * <p>控制是否为方法元素生成 JavaDoc 文档。
+     * 包括普通方法和测试方法。
+     *
+     * <p>默认值: true
+     *
+     * @see TaskCollector#collectFromFile(PsiFile)
+     */
+    public boolean generateForMethod = true;
+
+    /**
+     * 是否为字段生成文档
+     *
+     * <p>控制是否为字段（成员变量）元素生成 JavaDoc 文档。
+     * 默认关闭，因为字段通常较简单。
+     *
+     * <p>默认值: false
+     *
+     * @see TaskCollector#collectFromFile(PsiFile)
+     */
+    public boolean generateForField = false;
+
+    /**
+     * 是否跳过已有文档的元素
+     *
+     * <p>控制是否跳过已经包含 JavaDoc 注释的代码元素。
+     * 避免重复生成和覆盖用户自定义注释。
+     *
+     * <p>默认值: true
+     *
+     * @see TaskCollector#shouldGenerateForElement(PsiElement)
+     */
+    public boolean skipExisting = true;
+
+    /**
+     * 是否优化类代码以减少 token 消耗
+     *
+     * <p>控制是否为类级别的代码进行优化以减少传递给 AI 的 token 数量。
+     * 优化包括：删除多余空行、删除单行注释、保留 JavaDoc 注释等。
+     *
+     * <p>默认值: true
+     *
+     * @see TaskCollector#optimizeClassCode(String)
+     */
+    public boolean optimizeClassCode = true;
+
+    /**
+     * 类代码最大行数限制
+     *
+     * <p>当优化类代码时，如果代码行数超过此限制，将进行截取。
+     * 这有助于控制传递给 AI 的 token 数量，避免超长代码导致的性能问题。
+     *
+     * <p>默认值: 1000
+     *
+     * @see TaskCollector#optimizeClassCode(String)
+     */
+    public int maxClassCodeLines = 1000;
+
+    // ==================== 高级配置 ====================
+
+    /**
+     * 最大重试次数
+     *
+     * <p>AI 服务调用失败时的最大重试次数。
+     * 用于处理网络波动或服务临时不可用。
+     *
+     * <p>默认值: 3
+     *
+     * @see AICompatibleProvider#generateDocumentation(String, DocumentationTask.TaskType, String)
+     */
+    public int maxRetries = 3;
+
+    /**
+     * 请求超时时间（毫秒）
+     *
+     * <p>AI 服务请求的超时时间。
+     * 避免长时间等待影响用户体验。
+     *
+     * <p>默认值: 30000 (30 秒)
+     *
+     * @see RestTemplate
+     */
+    public int timeout = 30000;
+
+    /**
+     * 基础等待时间（毫秒）
+     *
+     * <p>重试机制中的基础等待时间。
+     * 实际等待时间 = waitDuration * 2^(attempt-1)
+     *
+     * <p>默认值: 5000 (5 秒)
+     *
+     * @see AICompatibleProvider#generateDocumentation(String, DocumentationTask.TaskType, String)
+     */
+    public long waitDuration = 5000;
+
+    /**
+     * 温度参数
+     *
+     * <p>控制 AI 生成结果的随机性。
+     * 范围 0.0-1.0，较低的值产生更确定的结果。
+     * 对于文档生成，建议使用较低值保证一致性。
+     *
+     * <p>默认值: 0.1
+     *
+     * @see <a href="https://help.aliyun.com/zh/dashscope/developer-reference/temperature">温度参数说明</a>
+     */
+    public double temperature = 0.1;
+
+    /**
+     * 最大 Token 数量
+     *
+     * <p>AI 服务生成响应的最大 token 数量。
+     * 控制生成内容的长度和成本。
+     *
+     * <p>默认值: 1000
+     *
+     * @see <a href="https://help.aliyun.com/zh/dashscope/developer-reference/max_tokens">Max Tokens 说明</a>
+     */
+    public int maxTokens = 1000;
+
+    /**
+     * 批量处理时的并发数
+     *
+     * <p>批量处理文档任务时的并发线程数。
+     * 平衡处理速度和系统资源消耗。
+     *
+     * <p>默认值: 3
+     */
+    public int concurrency = 3;
+
+    /**
+     * 是否启用详细日志
+     *
+     * <p>控制是否输出详细的调试日志。
+     * 用于问题排查和开发调试。
+     *
+     * <p>默认值: false
+     *
+     * @see AICompatibleProvider#generateDocumentation(String, DocumentationTask.TaskType, String)
+     */
+    public boolean verboseLogging = false;
+
+    // ==================== Prompt 配置 ====================
+
+    /**
+     * 类的 Prompt 模板
+     *
+     * <p>为类元素生成文档时使用的 Prompt 模板。
+     * 使用 %s 作为代码占位符。
+     * 用户可在设置界面自定义。
+     *
+     * <p>默认值: getDefaultClassPromptTemplate()
+     *
+     * @see #getDefaultClassPromptTemplate()
+     */
+    public String classPromptTemplate = getDefaultClassPromptTemplate();
+
+    /**
+     * 方法的 Prompt 模板
+     *
+     * <p>为方法元素生成文档时使用的 Prompt 模板。
+     * 使用 %s 作为代码占位符。
+     * 用户可在设置界面自定义。
+     *
+     * <p>默认值: getDefaultMethodPromptTemplate()
+     *
+     * @see #getDefaultMethodPromptTemplate()
+     */
+    public String methodPromptTemplate = getDefaultMethodPromptTemplate();
+
+    /**
+     * 字段的 Prompt 模板
+     *
+     * <p>为字段元素生成文档时使用的 Prompt 模板。
+     * 使用 %s 作为代码占位符。
+     * 用户可在设置界面自定义。
+     *
+     * <p>默认值: getDefaultFieldPromptTemplate()
+     *
+     * @see #getDefaultFieldPromptTemplate()
+     */
+    public String fieldPromptTemplate = getDefaultFieldPromptTemplate();
+
+    /**
+     * 测试方法的 Prompt 模板
+     *
+     * <p>为测试方法生成文档时使用的 Prompt 模板。
+     * 使用 %s 作为代码占位符。
+     * 用户可在设置界面自定义。
+     *
+     * <p>默认值: getDefaultTestPromptTemplate()
+     *
+     * @see #getDefaultTestPromptTemplate()
+     */
+    public String testPromptTemplate = getDefaultTestPromptTemplate();
+
+    /**
+     * 获取默认的类 Prompt 模板
+     *
+     * <p>返回为类元素生成文档的默认 Prompt 模板。
+     * 包含详细的格式要求和示例。
+     *
+     * <p>模板特点:
+     * <ul>
+     *   <li>要求使用中文编写</li>
+     *   <li>包含完整的 JavaDoc 格式</li>
+     *   <li>提供具体示例</li>
+     *   <li>使用 %s 作为代码占位符</li>
+     * </ul>
+     *
+     * @return 默认的类 Prompt 模板
+     */
+    @NotNull
+    public static String getDefaultClassPromptTemplate() {
+        return """
+            你是一个专业的 Java 开发工程师，请为以下类/接口/枚举生成类级别的 JavaDoc 注释（中文）。
+            
+            # 重要说明
+            - 下面的代码可能已经包含旧的 JavaDoc 注释，请忽略或改进它
+            - 只返回类/接口/枚举级别的 JavaDoc 注释，不要返回方法、字段等其他元素的注释
+            - 不要返回代码本身，只返回注释
+            - 不要使用任何 markdown 代码块标记（如 ```java）
+            
+            # 格式要求
+            1. 必须包含完整的 JavaDoc 格式，包括开始标记 /** 和结束标记 */
+            2. 使用中文编写注释内容
+            3. 注释要准确描述类/接口/枚举的职责、主要功能和使用场景
+            4. 如果是工具类，需要说明主要提供的功能
+            5. 如果是接口，需要说明接口的用途和实现要求
+            6. 如果是枚举，需要说明枚举的用途和各个值的含义
+            7. 如果有特殊的设计模式，需要说明
+            8. 可以使用 @author、@version、@since 等标签
+            
+            # 示例
+            输入代码：
+            public class UserService {
+                public User findById(int id) { ... }
+                public void save(User user) { ... }
+            }
+            
+            输出注释：
+            /**
+             * 用户服务类
+             * <p>
+             * <p>提供用户相关的业务逻辑处理，包括用户的查询、创建、更新和删除等操作
+             * <p>
+             * @author dong4j
+             * @date 2025.10.24
+             * @version 1.0.0
+             * @since 1.0.0.0
+             */
+            
+            待处理的代码片段:
+            
+            %s
+            
+            """;
+    }
+
+    /**
+     * 获取默认的方法 Prompt 模板
+     *
+     * <p>返回为方法元素生成文档的默认 Prompt 模板。
+     * 强调参数、返回值和异常的描述。
+     *
+     * <p>模板特点:
+     * <ul>
+     *   <li>要求使用中文编写</li>
+     *   <li>强调 @param、@return、@throws 标签</li>
+     *   <li>提供具体示例</li>
+     *   <li>使用 %s 作为代码占位符</li>
+     * </ul>
+     *
+     * @return 默认的方法 Prompt 模板
+     */
+    @NotNull
+    public static String getDefaultMethodPromptTemplate() {
+        return """
+            你是一个专业的 Java 开发工程师，请为以下方法生成 JavaDoc 注释（中文）。
+            
+            # 重要说明
+            - 下面的代码可能已经包含旧的 JavaDoc 注释，请忽略或改进它
+            - 只返回方法级别的 JavaDoc 注释，不要返回类、字段等其他元素的注释
+            - 不要返回代码本身，只返回注释
+            - 不要使用任何 markdown 代码块标记（如 ```java）
+            
+            # 格式要求
+            1. 必须包含完整的 JavaDoc 格式，包括开始标记 /** 和结束标记 */
+            2. 使用中文编写注释内容
+            3. 注释要准确描述方法的功能、参数、返回值
+            4. 必须包含 @param 标签（如果有参数）
+            5. 必须包含 @return 标签（如果有返回值）
+            6. 如果有异常抛出，使用 @throws 标签
+            7. 可以使用 @author、@since 等标签
+            
+            # 示例
+            输入代码：
+            public String getUserName(int userId) throws UserNotFoundException {
+                return userService.findById(userId).getName();
+            }
+            
+            输出注释：
+            /**
+             * 根据用户ID获取用户名称
+             * <p>
+             * <p>通过用户ID查找用户并返回用户名称
+             * <p>
+             * @param userId 用户ID
+             * @return 用户名称
+             * @throws UserNotFoundException 当用户不存在时抛出
+             * @author dong4j
+             * @since 1.0.0.0
+             */
+            
+            待处理的代码片段:
+            
+            %s
+            
+            """;
+    }
+
+    /**
+     * 获取默认的字段 Prompt 模板
+     *
+     * <p>返回为字段元素生成文档的默认 Prompt 模板。
+     * 特别处理单行和多行格式。
+     *
+     * <p>模板特点:
+     * <ul>
+     *   <li>要求使用中文编写</li>
+     *   <li>区分简单和复杂字段</li>
+     *   <li>提供多种格式示例</li>
+     *   <li>使用 %s 作为代码占位符</li>
+     * </ul>
+     *
+     * @return 默认的字段 Prompt 模板
+     */
+    @NotNull
+    public static String getDefaultFieldPromptTemplate() {
+        return """
+            你是一个专业的 Java 开发工程师，请为以下字段生成 JavaDoc 注释（中文）。
+            
+            # 重要说明
+            - 下面的代码可能已经包含旧的 JavaDoc 注释，请忽略或改进它
+            - 只返回字段级别的 JavaDoc 注释，不要返回类、方法等其他元素的注释
+            - 不要返回代码本身，只返回注释
+            - 不要使用任何 markdown 代码块标记（如 ```java）
+            
+            # 格式要求
+            1. 必须返回完整的 JavaDoc 格式，包括开始标记 /** 和结束标记 */
+            2. 使用中文编写注释内容
+            3. 注释要准确描述字段的用途和含义
+            4. **格式规则（重要）**：
+               - 如果字段说明简单（不超过 80 个字符，没有 @tag 标签），必须使用单行格式：/** 字段说明 */
+               - 如果字段说明复杂（包含多个信息点、有 @tag 标签、或超过 80 个字符），使用多行格式
+            
+            # 示例
+            示例1 - 简单字段：
+            输入：private String username;
+            输出：/** 用户名 */
+            
+            示例2 - 带旧注释的字段：
+            输入：/** 旧注释 */ private String tokenValue;
+            输出：/** AccessToken 值 */
+            
+            示例3 - 复杂字段：
+            输入：private UserConfig config;
+            输出：
+            /**
+             * 用户配置信息
+             * <p>
+             * <p>包含用户偏好设置、主题配置等
+             * <p>
+             * @see UserConfig
+             */
+            
+            待处理的代码片段:
+            
+            %s
+            
+            """;
+    }
+
+    /**
+     * 获取默认的测试方法 Prompt 模板
+     *
+     * <p>返回为测试方法生成文档的默认 Prompt 模板。
+     * 关注测试目标、场景和预期结果。
+     *
+     * <p>模板特点:
+     * <ul>
+     *   <li>要求使用中文编写</li>
+     *   <li>强调测试场景描述</li>
+     *   <li>提供具体示例</li>
+     *   <li>使用 %s 作为代码占位符</li>
+     * </ul>
+     *
+     * @return 默认的测试方法 Prompt 模板
+     */
+    @NotNull
+    public static String getDefaultTestPromptTemplate() {
+        return """
+            你是一个专业的 Java 开发工程师，请为以下测试方法生成 JavaDoc 注释（中文）。
+            
+            # 重要说明
+            - 下面的代码可能已经包含旧的 JavaDoc 注释，请忽略或改进它
+            - 只返回测试方法级别的 JavaDoc 注释，不要返回类、字段等其他元素的注释
+            - 不要返回代码本身，只返回注释
+            - 不要使用任何 markdown 代码块标记（如 ```java）
+            
+            # 格式要求
+            1. 必须包含完整的 JavaDoc 格式，包括开始标记 /** 和结束标记 */
+            2. 使用中文编写注释内容
+            3. 注释应描述：测试目标、测试场景、预期结果
+            4. 如果代码中有 @link 引用，请在注释中使用 {@link ClassName#methodName} 格式
+            
+            # 示例
+            输入代码：
+            @Test
+            public void testGetUserName_whenUserExists_shouldReturnName() {
+                User user = new User(1, "John");
+                when(userService.findById(1)).thenReturn(user);
+                assertEquals("John", service.getUserName(1));
+            }
+            
+            输出注释：
+            /**
+             * 测试获取用户名称功能
+             * <p>
+             * <p>测试场景：当用户存在时
+             * <p>预期结果：应返回正确的用户名称
+             */
+            
+            待处理的代码片段:
+            
+            %s
+            
+            """;
+    }
+
+    // ==================== 持久化方法 ====================
+
+    /**
+     * 获取全局配置实例
+     *
+     * <p>返回插件配置的全局单例实例。
+     * 使用 IntelliJ Platform 的服务机制获取。
+     *
+     * <p>使用示例:
+     * <pre>
+     * SettingsState settings = SettingsState.getInstance();
+     * String provider = settings.aiProvider;
+     * </pre>
+     *
+     * @return 配置实例
+     * @see ApplicationManager#getApplication()
+     */
+    @NotNull
+    public static SettingsState getInstance() {
+        return ApplicationManager.getApplication()
+            .getService(SettingsState.class);
+    }
+
+    @Nullable
+    @Override
+    public SettingsState getState() {
+        return this;
+    }
+
+    @Override
+    public void loadState(@NotNull SettingsState state) {
+        XmlSerializerUtil.copyBean(state, this);
+    }
+
+    // ==================== 辅助方法 ====================
+
+    /**
+     * 验证配置是否有效
+     *
+     * <p>检查必需配置项是否完整且有效。
+     * 用于保存配置前的验证。
+     *
+     * <p>验证内容:
+     * <ul>
+     *   <li>AI 提供商 ID 不为空</li>
+     *   <li>模型名称不为空</li>
+     *   <li>Base URL 不为空</li>
+     *   <li>如需要 API Key 则不为空</li>
+     * </ul>
+     *
+     * @return 如果配置有效返回 true
+     * @see #requiresApiKey()
+     */
+    public boolean isValid() {
+        // 检查必需字段
+        if (aiProvider == null || aiProvider.trim().isEmpty()) {
+            return false;
+        }
+
+        if (modelName == null || modelName.trim().isEmpty()) {
+            return false;
+        }
+
+        if (baseUrl == null || baseUrl.trim().isEmpty()) {
+            return false;
+        }
+
+        // 检查是否需要 API Key
+        return !requiresApiKey() || (apiKey != null && !apiKey.trim().isEmpty());
+    }
+
+    /**
+     * 当前配置是否需要 API Key
+     *
+     * <p>根据当前选择的 AI 提供商判断是否需要 API Key。
+     * 某些本地服务（如 Ollama）不需要 API Key。
+     *
+     * <p>判断逻辑:
+     * <ul>
+     *   <li>"ollama" 返回 false</li>
+     *   <li>其他提供商返回 true</li>
+     * </ul>
+     *
+     * @return 如果需要 API Key 返回 true
+     * @see OllamaProvider#requiresApiKey()
+     */
+    public boolean requiresApiKey() {
+        // Ollama 不需要 API Key
+        return !"ollama".equals(aiProvider);
+    }
+
+    /**
+     * 检查是否支持指定语言
+     *
+     * <p>检查插件是否支持指定的编程语言。
+     * 不区分大小写。
+     *
+     * <p>检查逻辑:
+     * <ul>
+     *   <li>将语言标识符转为小写</li>
+     *   <li>检查是否在 supportedLanguages 集合中</li>
+     * </ul>
+     *
+     * @param language 语言标识符（如 "java", "kotlin"）
+     * @return 如果支持返回 true
+     */
+    public boolean isLanguageSupported(String language) {
+        return supportedLanguages != null && supportedLanguages.contains(language.toLowerCase());
+    }
+
+    /**
+     * 重置为默认配置
+     *
+     * <p>将所有配置项重置为默认值。
+     * 用于恢复默认设置或初始化配置。
+     *
+     * <p>重置内容:
+     * <ul>
+     *   <li>AI 提供商相关配置</li>
+     *   <li>功能开关配置</li>
+     *   <li>高级选项配置</li>
+     *   <li>Prompt 模板配置</li>
+     * </ul>
+     */
+    public void resetToDefaults() {
+        aiProvider = "qianwen";
+        modelName = "qwen-max";
+        baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        apiKey = "";
+        configurationVerified = false;
+
+        supportedLanguages = new HashSet<>();
+        supportedLanguages.add("java");
+
+        generateForClass = true;
+        generateForMethod = true;
+        generateForField = false;
+        skipExisting = true;
+        optimizeClassCode = true;
+        maxClassCodeLines = 1000;
+
+        maxRetries = 3;
+        timeout = 30000;
+        waitDuration = 5000;
+        temperature = 0.1;
+        maxTokens = 1000;
+        concurrency = 3;
+        verboseLogging = false;
+
+        classPromptTemplate = getDefaultClassPromptTemplate();
+        methodPromptTemplate = getDefaultMethodPromptTemplate();
+        fieldPromptTemplate = getDefaultFieldPromptTemplate();
+        testPromptTemplate = getDefaultTestPromptTemplate();
+    }
+
+    /**
+     * 创建配置的副本
+     *
+     * <p>创建当前配置的深拷贝副本。
+     * 用于配置比较或临时修改。
+     *
+     * <p>实现方式:
+     * <ul>
+     *   <li>使用 XmlSerializerUtil.copyBean 进行深拷贝</li>
+     *   <li>创建新的 SettingsState 实例</li>
+     * </ul>
+     *
+     * @return 配置副本
+     * @see XmlSerializerUtil#copyBean(Object, Object)
+     */
+    @NotNull
+    public SettingsState copy() {
+        SettingsState copy = new SettingsState();
+        XmlSerializerUtil.copyBean(this, copy);
+        return copy;
+    }
+}
+
