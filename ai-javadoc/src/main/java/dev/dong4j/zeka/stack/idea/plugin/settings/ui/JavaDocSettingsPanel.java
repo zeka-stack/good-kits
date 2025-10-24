@@ -5,6 +5,7 @@ import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPasswordField;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.components.JBTabbedPane;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.JBUI;
@@ -74,7 +75,8 @@ public class JavaDocSettingsPanel {
     private JSpinner concurrencySpinner;
     private JBCheckBox verboseLoggingCheckBox;
 
-    // Prompt 配置
+    // Prompt 配置 - Tab 页
+    private JBTabbedPane promptTabbedPane;
     private JTextArea classPromptTextArea;
     private JTextArea methodPromptTextArea;
     private JTextArea fieldPromptTextArea;
@@ -125,26 +127,11 @@ public class JavaDocSettingsPanel {
         concurrencySpinner = new JSpinner(new SpinnerNumberModel(3, 1, 10, 1));
         verboseLoggingCheckBox = new JBCheckBox(JavaDocBundle.message("settings.verbose.logging"));
 
-        // Prompt 配置
+        // Prompt 配置 - 创建文本区域（将在 Tab 页中使用）
         classPromptTextArea = new JTextArea(10, 50);
-        classPromptTextArea.setLineWrap(true);
-        classPromptTextArea.setWrapStyleWord(true);
-        classPromptTextArea.setToolTipText(JavaDocBundle.message("settings.prompt.class.tooltip"));
-
         methodPromptTextArea = new JTextArea(10, 50);
-        methodPromptTextArea.setLineWrap(true);
-        methodPromptTextArea.setWrapStyleWord(true);
-        methodPromptTextArea.setToolTipText(JavaDocBundle.message("settings.prompt.method.tooltip"));
-
         fieldPromptTextArea = new JTextArea(10, 50);
-        fieldPromptTextArea.setLineWrap(true);
-        fieldPromptTextArea.setWrapStyleWord(true);
-        fieldPromptTextArea.setToolTipText(JavaDocBundle.message("settings.prompt.field.tooltip"));
-
         testPromptTextArea = new JTextArea(10, 50);
-        testPromptTextArea.setLineWrap(true);
-        testPromptTextArea.setWrapStyleWord(true);
-        testPromptTextArea.setToolTipText(JavaDocBundle.message("settings.prompt.test.tooltip"));
 
         // 构建主面板
         mainPanel = FormBuilder.createFormBuilder()
@@ -169,20 +156,24 @@ public class JavaDocSettingsPanel {
             .addSeparator(10)
 
             .addComponent(new JBLabel(JavaDocBundle.message("settings.advanced.config")))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.retries")), maxRetriesSpinner)
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.timeout")), timeoutSpinner)
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.temperature")), temperatureSpinner)
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.tokens")), maxTokensSpinner)
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.concurrency")), concurrencySpinner)
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.retries")), createAdvancedConfigPanel(maxRetriesSpinner,
+                                                                                                                       "settings.max" +
+                                                                                                                       ".retries.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.timeout")), createAdvancedConfigPanel(timeoutSpinner,
+                                                                                                                   "settings.timeout.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.temperature")), createAdvancedConfigPanel(temperatureSpinner
+                , "settings.temperature.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.tokens")), createAdvancedConfigPanel(maxTokensSpinner,
+                                                                                                                      "settings.max" +
+                                                                                                                      ".tokens.hint"))
+            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.concurrency")), createAdvancedConfigPanel(concurrencySpinner
+                , "settings.concurrency.hint"))
             .addComponent(verboseLoggingCheckBox)
             .addSeparator(10)
 
             .addComponent(new JBLabel(JavaDocBundle.message("settings.prompt.templates")))
             .addComponent(new JBLabel(JavaDocBundle.message("settings.prompt.hint")))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.prompt.class")), createScrollPane(classPromptTextArea))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.prompt.method")), createScrollPane(methodPromptTextArea))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.prompt.field")), createScrollPane(fieldPromptTextArea))
-            .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.prompt.test")), createScrollPane(testPromptTextArea))
+            .addComponent(createPromptTabbedPane())
 
             .addComponentFillVertically(new JPanel(), 0)
             .getPanel();
@@ -207,6 +198,68 @@ public class JavaDocSettingsPanel {
         panel.add(apiKeyField, BorderLayout.CENTER);
         panel.add(testConnectionButton, BorderLayout.EAST);
         return panel;
+    }
+
+    private JPanel createAdvancedConfigPanel(JSpinner spinner, String hintKey) {
+        JPanel panel = new JPanel(new BorderLayout(5, 0));
+
+        // 固定输入框宽度
+        spinner.setPreferredSize(new Dimension(120, spinner.getPreferredSize().height));
+        panel.add(spinner, BorderLayout.WEST);
+
+        // 提示文本放在右侧，但限制宽度
+        JBLabel hintLabel = new JBLabel(JavaDocBundle.message(hintKey));
+        hintLabel.setFont(hintLabel.getFont().deriveFont(hintLabel.getFont().getSize() - 2.0f));
+        hintLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
+        hintLabel.setPreferredSize(new Dimension(300, hintLabel.getPreferredSize().height));
+        panel.add(hintLabel, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JBTabbedPane createPromptTabbedPane() {
+        promptTabbedPane = new JBTabbedPane();
+        promptTabbedPane.setPreferredSize(new Dimension(600, 200));
+
+        // 创建各个 Tab 页
+        promptTabbedPane.addTab(JavaDocBundle.message("settings.prompt.tab.class"), createPromptTab(classPromptTextArea, "class"));
+        promptTabbedPane.addTab(JavaDocBundle.message("settings.prompt.tab.method"), createPromptTab(methodPromptTextArea, "method"));
+        promptTabbedPane.addTab(JavaDocBundle.message("settings.prompt.tab.field"), createPromptTab(fieldPromptTextArea, "field"));
+        promptTabbedPane.addTab(JavaDocBundle.message("settings.prompt.tab.test"), createPromptTab(testPromptTextArea, "test"));
+
+        return promptTabbedPane;
+    }
+
+    private JPanel createPromptTab(JTextArea textArea, String promptType) {
+        JPanel tabPanel = new JPanel(new BorderLayout());
+
+        // 创建文本区域
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        textArea.setToolTipText(JavaDocBundle.message("settings.prompt." + promptType + ".tooltip"));
+
+        JBScrollPane scrollPane = new JBScrollPane(textArea);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        tabPanel.add(scrollPane, BorderLayout.CENTER);
+
+        // 创建重置按钮
+        JButton resetButton = new JButton(JavaDocBundle.message("settings.prompt.reset"));
+        resetButton.addActionListener(e -> resetPromptToDefault(promptType, textArea));
+        tabPanel.add(resetButton, BorderLayout.SOUTH);
+
+        return tabPanel;
+    }
+
+    private void resetPromptToDefault(String promptType, JTextArea textArea) {
+        String defaultTemplate = switch (promptType) {
+            case "class" -> SettingsState.getDefaultClassPromptTemplate();
+            case "method" -> SettingsState.getDefaultMethodPromptTemplate();
+            case "field" -> SettingsState.getDefaultFieldPromptTemplate();
+            case "test" -> SettingsState.getDefaultTestPromptTemplate();
+            default -> "";
+        };
+        textArea.setText(defaultTemplate);
     }
 
     private JScrollPane createScrollPane(JTextArea textArea) {
@@ -448,7 +501,7 @@ public class JavaDocSettingsPanel {
         settings.concurrency = (Integer) concurrencySpinner.getValue();
         settings.verboseLogging = verboseLoggingCheckBox.isSelected();
 
-        // Prompt 配置
+        // Prompt 配置 - 从 Tab 页获取
         settings.classPromptTemplate = classPromptTextArea.getText().trim();
         settings.methodPromptTemplate = methodPromptTextArea.getText().trim();
         settings.fieldPromptTemplate = fieldPromptTextArea.getText().trim();
@@ -495,7 +548,7 @@ public class JavaDocSettingsPanel {
         concurrencySpinner.setValue(settings.concurrency);
         verboseLoggingCheckBox.setSelected(settings.verboseLogging);
 
-        // Prompt 配置
+        // Prompt 配置 - 加载到 Tab 页
         classPromptTextArea.setText(settings.classPromptTemplate);
         methodPromptTextArea.setText(settings.methodPromptTemplate);
         fieldPromptTextArea.setText(settings.fieldPromptTemplate);
