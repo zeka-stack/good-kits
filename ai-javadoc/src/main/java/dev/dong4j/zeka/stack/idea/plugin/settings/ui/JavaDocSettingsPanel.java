@@ -77,6 +77,7 @@ public class JavaDocSettingsPanel {
 
     // Prompt 配置 - Tab 页
     private JBTabbedPane promptTabbedPane;
+    private JTextArea systemPromptTextArea;
     private JTextArea classPromptTextArea;
     private JTextArea methodPromptTextArea;
     private JTextArea fieldPromptTextArea;
@@ -89,7 +90,7 @@ public class JavaDocSettingsPanel {
 
     private void createUI() {
         // AI 提供商配置
-        providerComboBox = new ComboBox<>(new String[] {"qianwen", "ollama"});
+        providerComboBox = new ComboBox<>(new String[] {"qianwen", "ollama", "custom"});
 
         // 创建可编辑的模型下拉框，用户可以输入任何模型名称
         modelComboBox = new ComboBox<>();
@@ -128,6 +129,7 @@ public class JavaDocSettingsPanel {
         verboseLoggingCheckBox = new JBCheckBox(JavaDocBundle.message("settings.verbose.logging"));
 
         // Prompt 配置 - 创建文本区域（将在 Tab 页中使用）
+        systemPromptTextArea = new JTextArea(10, 50);
         classPromptTextArea = new JTextArea(10, 50);
         methodPromptTextArea = new JTextArea(10, 50);
         fieldPromptTextArea = new JTextArea(10, 50);
@@ -222,6 +224,7 @@ public class JavaDocSettingsPanel {
         promptTabbedPane.setPreferredSize(new Dimension(600, 200));
 
         // 创建各个 Tab 页
+        promptTabbedPane.addTab(JavaDocBundle.message("settings.prompt.tab.system"), createPromptTab(systemPromptTextArea, "system"));
         promptTabbedPane.addTab(JavaDocBundle.message("settings.prompt.tab.class"), createPromptTab(classPromptTextArea, "class"));
         promptTabbedPane.addTab(JavaDocBundle.message("settings.prompt.tab.method"), createPromptTab(methodPromptTextArea, "method"));
         promptTabbedPane.addTab(JavaDocBundle.message("settings.prompt.tab.field"), createPromptTab(fieldPromptTextArea, "field"));
@@ -253,6 +256,7 @@ public class JavaDocSettingsPanel {
 
     private void resetPromptToDefault(String promptType, JTextArea textArea) {
         String defaultTemplate = switch (promptType) {
+            case "system" -> SettingsState.getDefaultSystemPromptTemplate();
             case "class" -> SettingsState.getDefaultClassPromptTemplate();
             case "method" -> SettingsState.getDefaultMethodPromptTemplate();
             case "field" -> SettingsState.getDefaultFieldPromptTemplate();
@@ -502,6 +506,7 @@ public class JavaDocSettingsPanel {
         settings.verboseLogging = verboseLoggingCheckBox.isSelected();
 
         // Prompt 配置 - 从 Tab 页获取
+        settings.systemPromptTemplate = systemPromptTextArea.getText().trim();
         settings.classPromptTemplate = classPromptTextArea.getText().trim();
         settings.methodPromptTemplate = methodPromptTextArea.getText().trim();
         settings.fieldPromptTemplate = fieldPromptTextArea.getText().trim();
@@ -549,6 +554,7 @@ public class JavaDocSettingsPanel {
         verboseLoggingCheckBox.setSelected(settings.verboseLogging);
 
         // Prompt 配置 - 加载到 Tab 页
+        systemPromptTextArea.setText(settings.systemPromptTemplate);
         classPromptTextArea.setText(settings.classPromptTemplate);
         methodPromptTextArea.setText(settings.methodPromptTemplate);
         fieldPromptTextArea.setText(settings.fieldPromptTemplate);

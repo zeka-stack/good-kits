@@ -100,6 +100,43 @@ Ollama supports running open-source large language models locally, with complete
 - `deepseek-coder:6.7b`: DeepSeek code model
 - `llama2:7b`: General model
 
+### Custom Service (OpenAI Compatible)
+
+Supports any custom service compatible with OpenAI API interface, including OpenAI official service, Azure OpenAI, third-party services,
+etc.
+
+**Configuration Steps:**
+
+1. In plugin settings, select **AI Provider** as "custom"
+2. **Base URL** enter service address, for example:
+    - OpenAI: `https://api.openai.com/v1`
+    - Azure OpenAI: `https://your-resource.openai.azure.com/openai/deployments/your-deployment`
+    - Self-hosted service: `http://localhost:8000/v1`
+3. **API Key** enter the service's API key
+4. **Model** enter model name, for example:
+    - `gpt-3.5-turbo`: OpenAI's fast model
+    - `gpt-4`: OpenAI's high-quality model
+    - `gpt-4-turbo`: OpenAI's latest model
+    - `claude-3-sonnet`: Anthropic Claude model
+    - `gemini-pro`: Google Gemini model
+5. Click **Test Connection** to verify configuration
+6. Click **Apply** to save configuration
+
+**Supported Common Services:**
+
+- **OpenAI**: Official OpenAI service
+- **Azure OpenAI**: OpenAI service on Microsoft Azure
+- **Anthropic Claude**: Use Claude models through compatibility layer
+- **Google Gemini**: Use Gemini models through compatibility layer
+- **Self-hosted Service**: Any self-hosted service compatible with OpenAI API
+
+**Notes:**
+
+- Ensure the service supports OpenAI compatible `/chat/completions` interface
+- API Key format is usually "Bearer {key}" or use key directly
+- Model name must match the models supported by the service provider
+- Some services may have rate limits or usage quotas
+
 ### Advanced Configuration
 
 In the settings panel, you can also configure:

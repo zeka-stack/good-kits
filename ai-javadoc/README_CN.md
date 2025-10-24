@@ -99,6 +99,42 @@ Ollama 支持在本地运行开源大语言模型，数据完全私有，无需 
 - `deepseek-coder:6.7b`：深度求索代码模型
 - `llama2:7b`：通用模型
 
+### 自定义服务（OpenAI 兼容）
+
+支持任何兼容 OpenAI API 接口的自定义服务，包括 OpenAI 官方服务、Azure OpenAI、第三方服务等。
+
+**配置步骤：**
+
+1. 在插件设置中选择 **AI Provider** 为 "custom"
+2. **Base URL** 输入服务地址，例如：
+    - OpenAI：`https://api.openai.com/v1`
+    - Azure OpenAI：`https://your-resource.openai.azure.com/openai/deployments/your-deployment`
+    - 自部署服务：`http://localhost:8000/v1`
+3. **API Key** 输入服务的 API 密钥
+4. **Model** 输入模型名称，例如：
+    - `gpt-3.5-turbo`：OpenAI 的快速模型
+    - `gpt-4`：OpenAI 的高质量模型
+    - `gpt-4-turbo`：OpenAI 的最新模型
+    - `claude-3-sonnet`：Anthropic Claude 模型
+    - `gemini-pro`：Google Gemini 模型
+5. 点击 **Test Connection** 验证配置
+6. 点击 **Apply** 保存配置
+
+**支持的常见服务：**
+
+- **OpenAI**：官方 OpenAI 服务
+- **Azure OpenAI**：微软 Azure 上的 OpenAI 服务
+- **Anthropic Claude**：通过兼容层使用 Claude 模型
+- **Google Gemini**：通过兼容层使用 Gemini 模型
+- **自部署服务**：任何兼容 OpenAI API 的自部署服务
+
+**注意事项：**
+
+- 确保服务支持 OpenAI 兼容的 `/chat/completions` 接口
+- API Key 格式通常为 "Bearer {key}" 或直接使用 key
+- 模型名称必须与服务提供商支持的模型一致
+- 某些服务可能有速率限制或使用配额
+
 ### 高级配置
 
 在设置面板中，您还可以配置：

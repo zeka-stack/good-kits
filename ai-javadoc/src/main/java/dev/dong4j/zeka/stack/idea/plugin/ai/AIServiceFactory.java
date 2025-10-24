@@ -53,6 +53,7 @@ public class AIServiceFactory {
         // 注册所有支持的提供商
         PROVIDERS.put("qianwen", QianWenProvider.class);
         PROVIDERS.put("ollama", OllamaProvider.class);
+        PROVIDERS.put("custom", CustomProvider.class);
         // 未来可以添加更多提供商
         // PROVIDERS.put("openai", OpenAIProvider.class);
         // PROVIDERS.put("claude", ClaudeProvider.class);
@@ -96,7 +97,7 @@ public class AIServiceFactory {
 
         Class<? extends AIServiceProvider> providerClass = PROVIDERS.get(providerId);
         if (providerClass == null) {
-            String error = "不支持的 AI 提供商: " + providerId + "。当前支持的提供商：qianwen, ollama";
+            String error = "不支持的 AI 提供商: " + providerId + "。当前支持的提供商：qianwen, ollama, custom";
             com.intellij.openapi.diagnostic.Logger.getInstance(AIServiceFactory.class).error(error);
             return null;
         }

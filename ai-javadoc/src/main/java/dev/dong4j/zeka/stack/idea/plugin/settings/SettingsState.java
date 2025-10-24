@@ -70,6 +70,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * <ul>
      *   <li>"qianwen": 通义千问服务</li>
      *   <li>"ollama": Ollama 本地服务</li>
+     *   <li>"custom": 自定义服务（兼容 OpenAI API）</li>
      * </ul>
      *
      * <p>默认值: "qianwen"
@@ -381,6 +382,27 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
     public String testPromptTemplate = getDefaultTestPromptTemplate();
 
     /**
+     * 系统提示词模板
+     *
+     * <p>用于设定 AI 角色和行为准则的系统提示词。
+     * 这个提示词会作为 system 消息发送给 AI 服务，
+     * 用于建立 AI 的基本角色和响应风格。
+     *
+     * <p>系统提示词的作用：
+     * <ul>
+     *   <li>设定 AI 的专业角色（Java 开发工程师）</li>
+     *   <li>建立响应格式要求（中文 JavaDoc）</li>
+     *   <li>定义输出规范（只返回注释，不返回代码）</li>
+     *   <li>确保一致性和专业性</li>
+     * </ul>
+     *
+     * <p>默认值: getDefaultSystemPromptTemplate()
+     *
+     * @see #getDefaultSystemPromptTemplate()
+     */
+    public String systemPromptTemplate = getDefaultSystemPromptTemplate();
+
+    /**
      * 获取默认的类 Prompt 模板
      *
      * <p>返回为类元素生成文档的默认 Prompt 模板。
@@ -399,7 +421,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
     @NotNull
     public static String getDefaultClassPromptTemplate() {
         return """
-            你是一个专业的 Java 开发工程师，请为以下类/接口/枚举生成类级别的 JavaDoc 注释（中文）。
+            请为以下类/接口/枚举生成类级别的 JavaDoc 注释（中文）。
             
             # 重要说明
             - 下面的代码可能已经包含旧的 JavaDoc 注释，请忽略或改进它
@@ -462,7 +484,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
     @NotNull
     public static String getDefaultMethodPromptTemplate() {
         return """
-            你是一个专业的 Java 开发工程师，请为以下方法生成 JavaDoc 注释（中文）。
+            请为以下方法生成 JavaDoc 注释（中文）。
             
             # 重要说明
             - 下面的代码可能已经包含旧的 JavaDoc 注释，请忽略或改进它
@@ -524,7 +546,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
     @NotNull
     public static String getDefaultFieldPromptTemplate() {
         return """
-            你是一个专业的 Java 开发工程师，请为以下字段生成 JavaDoc 注释（中文）。
+            请为以下字段生成 JavaDoc 注释（中文）。
             
             # 重要说明
             - 下面的代码可能已经包含旧的 JavaDoc 注释，请忽略或改进它
@@ -586,7 +608,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
     @NotNull
     public static String getDefaultTestPromptTemplate() {
         return """
-            你是一个专业的 Java 开发工程师，请为以下测试方法生成 JavaDoc 注释（中文）。
+            请为以下测试方法生成 JavaDoc 注释（中文）。
             
             # 重要说明
             - 下面的代码可能已经包含旧的 JavaDoc 注释，请忽略或改进它
@@ -621,6 +643,42 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             
             %s
             
+            """;
+    }
+
+    /**
+     * 获取默认的系统提示词模板
+     *
+     * <p>返回用于设定 AI 角色和行为准则的默认系统提示词。
+     * 这个提示词会作为 system 消息发送给 AI 服务，
+     * 用于建立 AI 的基本角色和响应风格。
+     *
+     * <p>模板特点:
+     * <ul>
+     *   <li>设定 AI 的专业角色（Java 开发工程师）</li>
+     *   <li>建立响应格式要求（中文 JavaDoc）</li>
+     *   <li>定义输出规范（只返回注释，不返回代码）</li>
+     *   <li>确保一致性和专业性</li>
+     * </ul>
+     *
+     * @return 默认的系统提示词模板
+     */
+    @NotNull
+    public static String getDefaultSystemPromptTemplate() {
+        return """
+            你是一个专业的 Java 开发工程师，专门负责为 Java 代码生成高质量的 JavaDoc 注释。
+            
+            你精通 Java 编程语言和 JavaDoc 规范，能够准确理解代码逻辑并生成清晰、准确的中文注释。
+            
+            你的任务是分析用户提供的代码片段，并生成符合 JavaDoc 标准的注释，包括类、方法、字段等元素的文档。
+            
+            请始终使用中文编写注释，确保注释内容准确、简洁、易懂。
+            
+            重要要求：
+            - 只返回 JavaDoc 注释，不要返回代码本身
+            - 不要使用任何 markdown 代码块标记（如 ```java）
+            - 确保注释格式符合 JavaDoc 标准
+            - 注释内容要准确描述代码的功能和用途
             """;
     }
 
