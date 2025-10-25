@@ -155,11 +155,7 @@ public class JavaDocSettingsPanel {
             .addSeparator(10)
 
             .addComponent(new JBLabel(JavaDocBundle.message("settings.generation.options")))
-            .addComponent(createCheckBoxWithHint(generateForClassCheckBox, "settings.generate.for.class.hint"))
-            .addComponent(createCheckBoxWithHint(generateForMethodCheckBox, "settings.generate.for.method.hint"))
-            .addComponent(createCheckBoxWithHint(generateForFieldCheckBox, "settings.generate.for.field.hint"))
-            .addComponent(createCheckBoxWithHint(skipExistingCheckBox, "settings.skip.existing.hint"))
-            .addComponent(createCheckBoxWithHint(optimizeClassCodeCheckBox, "settings.optimize.class.code.hint"))
+            .addComponent(createGenerationOptionsPanel())
 
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.class.code.lines")), maxClassCodeLinesSpinner)
             .addSeparator(10)
@@ -206,6 +202,56 @@ public class JavaDocSettingsPanel {
             .getPanel();
 
         mainPanel.setBorder(JBUI.Borders.empty(10));
+    }
+
+    /**
+     * 创建生成选项面板
+     *
+     * @return 生成选项面板
+     */
+    private JPanel createGenerationOptionsPanel() {
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new java.awt.BorderLayout());
+
+        // 第一行：3个复选框水平排列
+        JBCheckBox[] firstRowCheckBoxes = {
+            generateForClassCheckBox,
+            generateForMethodCheckBox,
+            generateForFieldCheckBox
+        };
+
+        String[] firstRowHintKeys = {
+            "settings.generate.for.class.hint",
+            "settings.generate.for.method.hint",
+            "settings.generate.for.field.hint"
+        };
+
+        JPanel firstRowPanel = createHorizontalCheckBoxPanel(firstRowCheckBoxes, firstRowHintKeys, 3);
+        mainPanel.add(firstRowPanel, java.awt.BorderLayout.NORTH);
+
+        // 第二行：2个复选框垂直排列，调整间距
+        JPanel secondRowPanel = new JPanel();
+        secondRowPanel.setLayout(new java.awt.BorderLayout());
+        secondRowPanel.setBorder(JBUI.Borders.emptyTop(8)); // 与第一行保持适当间距
+
+        // 创建垂直布局的面板，控制两个复选框之间的间距
+        JPanel verticalPanel = new JPanel();
+        verticalPanel.setLayout(new java.awt.BorderLayout());
+        verticalPanel.add(createCheckBoxWithHint(skipExistingCheckBox, "settings.skip.existing.hint"), java.awt.BorderLayout.NORTH);
+
+        // 添加间距面板
+        JPanel spacingPanel = new JPanel();
+        spacingPanel.setPreferredSize(new java.awt.Dimension(0, 8)); // 8像素高度间距
+        verticalPanel.add(spacingPanel, java.awt.BorderLayout.CENTER);
+
+        verticalPanel.add(createCheckBoxWithHint(optimizeClassCodeCheckBox, "settings.optimize.class.code.hint"),
+                          java.awt.BorderLayout.SOUTH);
+
+        secondRowPanel.add(verticalPanel, java.awt.BorderLayout.CENTER);
+
+        mainPanel.add(secondRowPanel, java.awt.BorderLayout.SOUTH);
+
+        return mainPanel;
     }
 
     private JPanel createModelPanel() {
@@ -264,6 +310,49 @@ public class JavaDocSettingsPanel {
         panel.add(hintLabel, BorderLayout.CENTER);
         
         return panel;
+    }
+
+    /**
+     * 创建水平排列的复选框面板
+     *
+     * @param checkBoxes  复选框数组
+     * @param hintKeys    对应的提示文本键数组
+     * @param itemsPerRow 每行显示的复选框数量
+     * @return 水平排列的复选框面板
+     */
+    private JPanel createHorizontalCheckBoxPanel(JBCheckBox[] checkBoxes, String[] hintKeys, int itemsPerRow) {
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new java.awt.GridBagLayout());
+        java.awt.GridBagConstraints gbc = new java.awt.GridBagConstraints();
+
+        // 设置间距 - 减少水平间距
+        gbc.insets = JBUI.insets(5, 1);
+        gbc.anchor = java.awt.GridBagConstraints.WEST;
+
+        for (int i = 0; i < checkBoxes.length; i++) {
+            // 计算行和列
+            int row = i / itemsPerRow;
+
+            gbc.gridx = i % itemsPerRow;
+            gbc.gridy = row;
+            gbc.weightx = 1.0 / itemsPerRow; // 平均分配宽度
+
+            // 创建单个复选框的面板
+            JPanel checkBoxPanel = new JPanel(new BorderLayout(5, 0));
+            checkBoxPanel.add(checkBoxes[i], BorderLayout.WEST);
+
+            // 添加提示文本
+            if (i < hintKeys.length && hintKeys[i] != null) {
+                JBLabel hintLabel = new JBLabel(JavaDocBundle.message(hintKeys[i]));
+                hintLabel.setFont(hintLabel.getFont().deriveFont(hintLabel.getFont().getSize() - 2.0f));
+                hintLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
+                checkBoxPanel.add(hintLabel, BorderLayout.CENTER);
+            }
+
+            mainPanel.add(checkBoxPanel, gbc);
+        }
+
+        return mainPanel;
     }
 
     private JBTabbedPane createPromptTabbedPane() {
