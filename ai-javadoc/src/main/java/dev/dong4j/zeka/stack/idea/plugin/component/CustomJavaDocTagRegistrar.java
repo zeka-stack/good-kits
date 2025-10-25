@@ -68,9 +68,7 @@ public class CustomJavaDocTagRegistrar implements StartupActivity {
                     profileManager.fireProfileChanged();
                 }
             }
-        } catch (Exception e) {
-            // 记录错误但不中断插件启动
-            e.printStackTrace();
+        } catch (Exception ignored) {
         }
     }
 
@@ -82,27 +80,25 @@ public class CustomJavaDocTagRegistrar implements StartupActivity {
      */
     private void registerAdditionalTag(JavadocDeclarationInspection inspection, String tagName) {
         try {
-            // 使用反射调用 registerAdditionalTag 方法
-            java.lang.reflect.Method method = JavadocDeclarationInspection.class.getDeclaredMethod("registerAdditionalTag", String.class);
-            method.setAccessible(true);
-            method.invoke(inspection, tagName);
-        } catch (Exception e) {
-            // 如果反射调用失败，尝试直接访问字段（备用方案）
-            try {
-                // 尝试访问 additionalTags 字段
-                java.lang.reflect.Field additionalTagsField = JavadocDeclarationInspection.class.getDeclaredField("additionalTags");
-                additionalTagsField.setAccessible(true);
-                String additionalTags = (String) additionalTagsField.get(inspection);
+            // 尝试直接访问 ADDITIONAL_TAGS 字段（推荐方式）
+            java.lang.reflect.Field additionalTagsField = JavadocDeclarationInspection.class.getDeclaredField("ADDITIONAL_TAGS");
+            additionalTagsField.setAccessible(true);
+            String additionalTags = (String) additionalTagsField.get(inspection);
 
-                // 如果标签不存在，则添加
-                if (additionalTags == null || additionalTags.isEmpty()) {
-                    additionalTagsField.set(inspection, tagName);
-                } else if (!additionalTags.contains(tagName)) {
-                    additionalTagsField.set(inspection, additionalTags + "," + tagName);
-                }
-            } catch (Exception ex) {
-                // 如果所有方法都失败，记录错误
-                ex.printStackTrace();
+            // 如果标签不存在，则添加
+            if (additionalTags == null || additionalTags.isEmpty()) {
+                additionalTagsField.set(inspection, tagName);
+            } else if (!additionalTags.contains(tagName)) {
+                additionalTagsField.set(inspection, additionalTags + "," + tagName);
+            }
+        } catch (Exception e) {
+            // 如果直接访问字段失败，尝试使用反射调用 registerAdditionalTag 方法
+            try {
+                java.lang.reflect.Method method = JavadocDeclarationInspection.class.getDeclaredMethod("registerAdditionalTag",
+                                                                                                       String.class);
+                method.setAccessible(true);
+                method.invoke(inspection, tagName);
+            } catch (Exception ignored) {
             }
         }
     }
