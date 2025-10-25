@@ -31,6 +31,7 @@ public class AIServiceFactoryTest {
         settings.modelName = "qwen-max";
         settings.baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         settings.apiKey = "test-api-key";
+        settings.configurationVerified = true;
 
         AIServiceProvider provider = AIServiceFactory.createProvider(settings);
 
@@ -46,6 +47,7 @@ public class AIServiceFactoryTest {
         settings.modelName = "llama2";
         settings.baseUrl = "http://localhost:11434";
         settings.apiKey = "";
+        settings.configurationVerified = true;
 
         AIServiceProvider provider = AIServiceFactory.createProvider(settings);
 
@@ -55,24 +57,37 @@ public class AIServiceFactoryTest {
     }
 
     @Test
-    @DisplayName("测试创建不支持的提供商")
-    void testCreateProvider_unsupported() {
-        settings.aiProvider = "unknown-provider";
+    @DisplayName("测试创建 LM Studio 提供商")
+    void testCreateProvider_lmstudio() {
+        settings.aiProvider = AIProviderType.LM_STUDIO.getProviderId();
+        settings.modelName = "gpt-3.5-turbo";
+        settings.baseUrl = "http://localhost:1234/v1";
+        settings.apiKey = "";
+        settings.configurationVerified = true;
 
-        assertThatThrownBy(() -> AIServiceFactory.createProvider(settings))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Unsupported AI provider: unknown-provider");
+        AIServiceProvider provider = AIServiceFactory.createProvider(settings);
+
+        assertThat(provider).isNotNull();
+        assertThat(provider).isInstanceOf(LMStudioProvider.class);
+        assertThat(provider.getProviderId()).isEqualTo(AIProviderType.LM_STUDIO.getProviderId());
     }
 
     @Test
-    @DisplayName("测试创建提供商 - null 值")
-    void testCreateProvider_nullProvider() {
-        settings.aiProvider = null;
+    @DisplayName("测试创建硅基流动提供商")
+    void testCreateProvider_siliconflow() {
+        settings.aiProvider = AIProviderType.SILICONFLOW.getProviderId();
+        settings.modelName = "deepseek-chat";
+        settings.baseUrl = "https://api.siliconflow.cn/v1";
+        settings.apiKey = "test-api-key";
+        settings.configurationVerified = true;
 
-        assertThatThrownBy(() -> AIServiceFactory.createProvider(settings))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Unsupported AI provider: null");
+        AIServiceProvider provider = AIServiceFactory.createProvider(settings);
+
+        assertThat(provider).isNotNull();
+        assertThat(provider).isInstanceOf(SiliconFlowProvider.class);
+        assertThat(provider.getProviderId()).isEqualTo(AIProviderType.SILICONFLOW.getProviderId());
     }
+
 
     @Test
     @DisplayName("测试获取支持的提供商列表")
@@ -81,7 +96,11 @@ public class AIServiceFactoryTest {
 
         assertThat(providers).isNotNull();
         assertThat(providers).isNotEmpty();
-        assertThat(providers).contains(AIProviderType.QIANWEN.getProviderId(), AIProviderType.OLLAMA.getProviderId());
+        assertThat(providers).contains(AIProviderType.QIANWEN.getProviderId(),
+                                       AIProviderType.OLLAMA.getProviderId(),
+                                       AIProviderType.LM_STUDIO.getProviderId(),
+                                       AIProviderType.SILICONFLOW.getProviderId(),
+                                       AIProviderType.CUSTOM.getProviderId());
     }
 
     @Test
@@ -91,9 +110,21 @@ public class AIServiceFactoryTest {
     }
 
     @Test
-    @DisplayName("测试检查提供商是否支持 - Ollama")
-    void testIsProviderSupported_ollama() {
-        assertThat(AIServiceFactory.isProviderSupported(AIProviderType.OLLAMA.getProviderId())).isTrue();
+    @DisplayName("测试检查提供商是否支持 - LM Studio")
+    void testIsProviderSupported_lmstudio() {
+        assertThat(AIServiceFactory.isProviderSupported(AIProviderType.LM_STUDIO.getProviderId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("测试检查提供商是否支持 - 硅基流动")
+    void testIsProviderSupported_siliconflow() {
+        assertThat(AIServiceFactory.isProviderSupported(AIProviderType.SILICONFLOW.getProviderId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("测试检查提供商是否支持 - 自定义")
+    void testIsProviderSupported_custom() {
+        assertThat(AIServiceFactory.isProviderSupported(AIProviderType.CUSTOM.getProviderId())).isTrue();
     }
 
     @Test
@@ -107,7 +138,8 @@ public class AIServiceFactoryTest {
     @Test
     @DisplayName("测试检查提供商是否支持 - null 值")
     void testIsProviderSupported_null() {
-        assertThat(AIServiceFactory.isProviderSupported(null)).isFalse();
+        assertThatThrownBy(() -> AIServiceFactory.isProviderSupported(null))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -149,6 +181,7 @@ public class AIServiceFactoryTest {
         settings.modelName = "qwen-max";
         settings.baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         settings.apiKey = "test-api-key";
+        settings.configurationVerified = true;
 
         AIServiceProvider provider = AIServiceFactory.createProvider(settings);
 
@@ -167,6 +200,7 @@ public class AIServiceFactoryTest {
         settings.modelName = "llama2";
         settings.baseUrl = "http://localhost:11434";
         settings.apiKey = "";
+        settings.configurationVerified = true;
 
         AIServiceProvider provider = AIServiceFactory.createProvider(settings);
 
@@ -185,6 +219,7 @@ public class AIServiceFactoryTest {
         settings.modelName = "qwen-max";
         settings.baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         settings.apiKey = "test-api-key";
+        settings.configurationVerified = true;
 
         AIServiceProvider provider1 = AIServiceFactory.createProvider(settings);
         AIServiceProvider provider2 = AIServiceFactory.createProvider(settings);
@@ -203,6 +238,7 @@ public class AIServiceFactoryTest {
         settings.modelName = "qwen-max";
         settings.baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
         settings.apiKey = "test-api-key";
+        settings.configurationVerified = true;
         AIServiceProvider qianwenProvider = AIServiceFactory.createProvider(settings);
 
         assertThat(qianwenProvider.getProviderId()).isEqualTo(AIProviderType.QIANWEN.getProviderId());
@@ -212,6 +248,7 @@ public class AIServiceFactoryTest {
         settings.modelName = "llama2";
         settings.baseUrl = "http://localhost:11434";
         settings.apiKey = "";
+        settings.configurationVerified = true;
         AIServiceProvider ollamaProvider = AIServiceFactory.createProvider(settings);
 
         assertThat(ollamaProvider.getProviderId()).isEqualTo(AIProviderType.OLLAMA.getProviderId());

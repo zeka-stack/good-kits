@@ -10,7 +10,6 @@ import com.intellij.util.xmlb.XmlSerializerUtil;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -206,11 +205,11 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * <p>控制是否为字段（成员变量）元素生成 JavaDoc 文档。
      * 默认关闭，因为字段通常较简单。
      *
-     * <p>默认值: false
+     * <p>默认值: true
      *
      * @see TaskCollector#collectFromFile(PsiFile)
      */
-    public boolean generateForField = false;
+    public boolean generateForField = true;
 
     /**
      * 是否跳过已有文档的元素
@@ -256,11 +255,11 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * <p>AI 服务调用失败时的最大重试次数。
      * 用于处理网络波动或服务临时不可用。
      *
-     * <p>默认值: 3
+     * <p>默认值: 2
      *
      * @see AICompatibleProvider#generateDocumentation(String, DocumentationTask.TaskType, String)
      */
-    public int maxRetries = 3;
+    public int maxRetries = 2;
 
     /**
      * 请求超时时间（毫秒）
@@ -268,11 +267,9 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * <p>AI 服务请求的超时时间。
      * 避免长时间等待影响用户体验。
      *
-     * <p>默认值: 30000 (30 秒)
-     *
-     * @see RestTemplate
+     * <p>默认值: 10000 (10 秒)
      */
-    public int timeout = 30000;
+    public int timeout = 10000;
 
     /**
      * 基础等待时间（毫秒）
@@ -527,6 +524,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             6. 如果是枚举，需要说明枚举的用途和各个值的含义
             7. 如果有特殊的设计模式，需要说明
             8. 可以使用 @author、@version、@since 等标签
+            9. 添加 @date 标签，如果已有相关时间标签, 需要格式化为 yyyy.mm.dd
             
             # 示例
             输入代码：
@@ -539,8 +537,8 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             /**
              * 用户服务类
              * <p>
-             * <p>提供用户相关的业务逻辑处理，包括用户的查询、创建、更新和删除等操作
-             * <p>
+             * 提供用户相关的业务逻辑处理，包括用户的查询、创建、更新和删除等操作
+             *
              * @author dong4j
              * @date 2025.10.24
              * @version 1.0.0
@@ -600,13 +598,11 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             /**
              * 根据用户ID获取用户名称
              * <p>
-             * <p>通过用户ID查找用户并返回用户名称
-             * <p>
+             * 通过用户ID查找用户并返回用户名称
+             * 
              * @param userId 用户ID
              * @return 用户名称
              * @throws UserNotFoundException 当用户不存在时抛出
-             * @author dong4j
-             * @since 1.0.0
              */
             
             待处理的代码片段:
@@ -666,8 +662,8 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             /**
              * 用户配置信息
              * <p>
-             * <p>包含用户偏好设置、主题配置等
-             * <p>
+             * 包含用户偏好设置、主题配置等
+             *
              * @see UserConfig
              */
             
@@ -710,6 +706,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             2. 使用中文编写注释内容
             3. 注释应描述：测试目标、测试场景、预期结果
             4. 如果代码中有 @link 引用，请在注释中使用 {@link ClassName#methodName} 格式
+            5. 如果运行单元测试需要特殊的场景, 尽量添加上说明
             
             # 示例
             输入代码：
@@ -724,8 +721,8 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             /**
              * 测试获取用户名称功能
              * <p>
-             * <p>测试场景：当用户存在时
-             * <p>预期结果：应返回正确的用户名称
+             * 测试场景：当用户存在时
+             * 预期结果：应返回正确的用户名称
              */
             
             待处理的代码片段:
@@ -882,20 +879,6 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
     }
 
     /**
-     * 重置为默认配置
-     *
-     * <p>将所有配置项重置为默认值。
-     * 用于恢复默认设置或初始化配置。
-     *
-     * <p>重置内容:
-     * <ul>
-     *   <li>AI 提供商相关配置</li>
-     *   <li>功能开关配置</li>
-     *   <li>高级选项配置</li>
-     *   <li>Prompt 模板配置</li>
-     * </ul>
-     */
-    /**
      * 添加或更新提供商配置
      *
      * @param providerConfig 提供商配置
@@ -945,13 +928,13 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
 
         generateForClass = true;
         generateForMethod = true;
-        generateForField = false;
+        generateForField = true;
         skipExisting = true;
         optimizeClassCode = true;
         maxClassCodeLines = 1000;
 
-        maxRetries = 3;
-        timeout = 30000;
+        maxRetries = 2;
+        timeout = 10000;
         waitDuration = 5000;
         temperature = 0.1;
         maxTokens = 1000;

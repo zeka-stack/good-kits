@@ -43,8 +43,6 @@ dependencies {
     }
 
     // 其他依赖
-    // todo-dong4j : (2025.10.24 09:18) [替换成轻量级 http client ]
-    implementation("org.springframework:spring-web:5.3.16")
     implementation("org.json:json:20230227")
     compileOnly("org.projectlombok:lombok:1.18.26")
     annotationProcessor("org.projectlombok:lombok:1.18.26")

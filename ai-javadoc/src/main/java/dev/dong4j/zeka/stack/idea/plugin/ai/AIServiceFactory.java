@@ -53,6 +53,8 @@ public class AIServiceFactory {
         // 注册所有支持的提供商
         PROVIDERS.put(AIProviderType.QIANWEN.getProviderId(), QianWenProvider.class);
         PROVIDERS.put(AIProviderType.OLLAMA.getProviderId(), OllamaProvider.class);
+        PROVIDERS.put(AIProviderType.LM_STUDIO.getProviderId(), LMStudioProvider.class);
+        PROVIDERS.put(AIProviderType.SILICONFLOW.getProviderId(), SiliconFlowProvider.class);
         PROVIDERS.put(AIProviderType.CUSTOM.getProviderId(), CustomProvider.class);
         // 未来可以添加更多提供商
         // PROVIDERS.put(AIProviderType.OPENAI.getProviderId(), OpenAIProvider.class);

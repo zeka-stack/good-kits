@@ -1,20 +1,12 @@
 package dev.dong4j.zeka.stack.idea.plugin.ai;
 
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.util.io.HttpRequests;
 
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -61,12 +53,10 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
 
     private static final Logger LOG = Logger.getInstance(AICompatibleProvider.class);
 
-    protected final RestTemplate restTemplate;
     protected final SettingsState settings;
 
     protected AICompatibleProvider(SettingsState settings) {
         this.settings = settings;
-        this.restTemplate = new RestTemplate();
     }
 
     @SuppressWarnings("D")
@@ -160,7 +150,6 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      * @param prompt 提示词，包含代码和生成指令
      * @return AI 生成的文本内容
      * @throws AIServiceException 当请求失败时抛出，包含详细的错误信息
-     * @see #buildHeaders()
      * @see #buildRequestBody(String)
      * @see #parseResponse(String)
      */
@@ -201,28 +190,6 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
     }
 
     /**
-     * 发送请求到 AI 服务的通用方法
-     *
-     * <p>这是所有 AI 服务请求的通用实现，
-     * 包括注释生成和配置验证。
-     * 通过抽象请求体构建逻辑和响应解析逻辑，避免代码重复。
-     *
-     * <p>处理流程：
-     * <ol>
-     *   <li>构建 HTTP 请求头</li>
-     *   <li>使用提供的请求体</li>
-     *   <li>发送 POST 请求到 /chat/completions 端点</li>
-     *   <li>使用提供的解析器处理响应并解析结果</li>
-     * </ol>
-     *
-     * @param body 请求体 JSON 对象
-     * @param logPrefix 日志前缀，用于区分不同类型的请求
-     * @param promptLength 提示词长度，用于日志记录（验证请求时为 0）
-     * @param responseParser 响应解析器函数，用于解析不同类型的响应
-     * @return AI 服务的响应内容
-     * @throws AIServiceException 当请求失败时抛出
-     */
-    /**
      * 响应解析器函数接口
      * 允许抛出 AIServiceException 的解析函数
      */
@@ -234,41 +201,58 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
     private String sendRequestWithBody(JSONObject body, String logPrefix, int promptLength,
                                        ResponseParser responseParser) throws AIServiceException {
         try {
-            HttpHeaders headers = buildHeaders();
-            if (headers == null) {
-                throw new AIServiceException("Failed to build request headers: API Key is required but not configured",
-                                             AIServiceException.ErrorCode.CONFIGURATION_ERROR);
+            // 检查API Key配置
+            if (requiresApiKey()) {
+                String apiKey = settings.apiKey;
+                if (apiKey == null || apiKey.trim().isEmpty()) {
+                    throw new AIServiceException("Failed to build request headers: API Key is required but not configured",
+                                                 AIServiceException.ErrorCode.CONFIGURATION_ERROR);
+                }
             }
 
-            HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
             String url = settings.baseUrl + "/chat/completions";
+            String requestBody = body.toString();
 
             // 调试日志：记录请求信息
             if (settings.verboseLogging) {
                 LOG.trace("=== " + logPrefix + " ===");
                 LOG.trace("URL: " + url);
                 LOG.trace("Model: " + settings.modelName);
-                LOG.trace("Headers: " + maskSensitiveHeaders(headers));
-                LOG.trace("Request Body: " + truncateForLog(body.toString(),
+                LOG.trace("Request Body: " + truncateForLog(requestBody,
                                                             "Validation Request".equals(logPrefix) ? 500 : 1000));
                 if (promptLength > 0) {
                     LOG.trace("Prompt Length: " + promptLength + " characters");
                 }
             }
 
-            ResponseEntity<String> response = restTemplate.exchange(
-                url, HttpMethod.POST, entity, String.class);
+            // 使用IDEA SDK的HttpRequests发送请求
+            String responseBody = HttpRequests.post(url, "application/json")
+                .tuner(connection -> {
+                    // 设置超时
+                    connection.setConnectTimeout(settings.timeout); // 使用设置中的连接超时
+                    connection.setReadTimeout(settings.timeout * 2); // 读取超时是连接超时的2倍
+
+                    // 设置Authorization头（如果需要）
+                    if (requiresApiKey()) {
+                        connection.setRequestProperty("Authorization", "Bearer " + settings.apiKey);
+                    }
+                })
+                .connect(request -> {
+                    // 写入请求体
+                    request.write(requestBody);
+                    // 读取响应
+                    return request.readString();
+                });
 
             // 调试日志：记录响应信息
             if (settings.verboseLogging) {
                 LOG.trace("=== " + logPrefix.replace("Request", "Response") + " ===");
-                LOG.trace("Status Code: " + response.getStatusCode());
-                LOG.trace("Response Body: " + truncateForLog(response.getBody(),
+                LOG.trace("Response Body: " + truncateForLog(responseBody,
                                                              "Validation".equals(logPrefix) ? 1000 : 2000));
             }
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                String result = responseParser.parse(response.getBody());
+            if (!responseBody.trim().isEmpty()) {
+                String result = responseParser.parse(responseBody);
 
                 if (settings.verboseLogging) {
                     LOG.trace("Parsed Result Length: " + result.length() + " characters");
@@ -282,50 +266,18 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
             throw new AIServiceException("Invalid response from AI service",
                                          AIServiceException.ErrorCode.INVALID_RESPONSE);
 
-        } catch (HttpClientErrorException e) {
-            LOG.info("HTTP Client Error during " + logPrefix.toLowerCase() + ": Status=" + e.getStatusCode() + ", Body=" + e.getResponseBodyAsString());
-            throw handleClientError(e);
-        } catch (HttpServerErrorException e) {
-            LOG.info("HTTP Server Error during " + logPrefix.toLowerCase() + ": Status=" + e.getStatusCode() + ", Body=" + e.getResponseBodyAsString());
-            throw handleServerError(e);
-        } catch (ResourceAccessException e) {
+        } catch (IOException e) {
             LOG.info("Network Error during " + logPrefix.toLowerCase() + ": " + e.getMessage());
             throw new AIServiceException("Network error: " + e.getMessage(),
                                          AIServiceException.ErrorCode.NETWORK_ERROR, e);
+        } catch (AIServiceException e) {
+            // 重新抛出AIServiceException
+            throw e;
         } catch (Exception e) {
             LOG.info("Unexpected error during " + logPrefix.toLowerCase(), e);
             throw new AIServiceException("Unexpected error: " + e.getMessage(),
                                          AIServiceException.ErrorCode.UNKNOWN_ERROR, e);
         }
-    }
-
-    /**
-     * 脱敏敏感请求头（隐藏 API Key）
-     *
-     * <p>在记录日志时，避免将敏感信息（如 API Key）
-     * 直接输出到日志中，防止信息泄露。
-     * 将 Authorization 头的值替换为脱敏标记。
-     *
-     * <p>安全考虑：
-     * <ul>
-     *   <li>只处理 Authorization 头</li>
-     *   <li>保留其他头信息不变</li>
-     *   <li>使用固定长度的脱敏标记</li>
-     * </ul>
-     *
-     * @param headers 原始 HTTP 请求头
-     * @return 脱敏后的请求头字符串表示
-     */
-    private String maskSensitiveHeaders(HttpHeaders headers) {
-        HttpHeaders maskedHeaders = new HttpHeaders();
-        headers.forEach((key, values) -> {
-            if ("Authorization".equalsIgnoreCase(key)) {
-                maskedHeaders.add(key, "Bearer ***masked***");
-            } else {
-                maskedHeaders.addAll(key, values);
-            }
-        });
-        return maskedHeaders.toString();
     }
 
     /**
@@ -356,41 +308,6 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
         return text.substring(0, maxLength) + "... (truncated, total length: " + text.length() + ")";
     }
 
-    /**
-     * 构建 HTTP 请求头
-     *
-     * <p>根据提供商的要求和配置构建 HTTP 请求头。
-     * 包括内容类型、认证信息等必要头信息。
-     *
-     * <p>头信息包括：
-     * <ul>
-     *   <li>Content-Type: application/json</li>
-     *   <li>Authorization: Bearer {API Key}（如果需要）</li>
-     * </ul>
-     *
-     * <p>安全检查：
-     * <ul>
-     *   <li>如果需要 API Key 但未配置，记录日志并返回 null</li>
-     *   <li>API Key 不能为空或只包含空白字符</li>
-     * </ul>
-     *
-     * @return 构建好的 HTTP 请求头，如果配置不正确返回 null
-     */
-    protected HttpHeaders buildHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        if (requiresApiKey()) {
-            String apiKey = settings.apiKey;
-            if (apiKey == null || apiKey.trim().isEmpty()) {
-                LOG.debug("API Key is required but not configured for provider: " + getProviderId());
-                return null;
-            }
-            headers.set("Authorization", "Bearer " + apiKey);
-        }
-
-        return headers;
-    }
 
     /**
      * 构建请求体
@@ -589,7 +506,7 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
             }
 
             // 如果没有 usage 信息，尝试解析 choices 作为备选方案
-            if (json.has("choices") && json.getJSONArray("choices").length() > 0) {
+            if (json.has("choices") && !json.getJSONArray("choices").isEmpty()) {
                 if (settings.verboseLogging) {
                     LOG.debug("Validation successful: response has choices");
                 }
@@ -721,56 +638,6 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
         return template;
     }
 
-    /**
-     * 处理客户端错误
-     *
-     * <p>将 HTTP 客户端错误（4xx）转换为相应的 AIServiceException。
-     * 根据具体的状态码返回不同类型的异常。
-     *
-     * <p>错误映射：
-     * <ul>
-     *   <li>401/403: INVALID_API_KEY - API Key 无效</li>
-     *   <li>429: RATE_LIMIT - 请求频率过高</li>
-     *   <li>其他 4xx: CONFIGURATION_ERROR - 配置错误</li>
-     * </ul>
-     *
-     * @param e HttpClientErrorException 异常
-     * @return 相应的 AIServiceException
-     */
-    protected AIServiceException handleClientError(HttpClientErrorException e) {
-        if (e.getStatusCode() == HttpStatus.UNAUTHORIZED ||
-            e.getStatusCode() == HttpStatus.FORBIDDEN) {
-            return new AIServiceException("Invalid API Key",
-                                          AIServiceException.ErrorCode.INVALID_API_KEY, e);
-        } else if (e.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
-            return new AIServiceException("Rate limit exceeded",
-                                          AIServiceException.ErrorCode.RATE_LIMIT, e);
-        } else {
-            return new AIServiceException("Client error: " + e.getStatusText(),
-                                          AIServiceException.ErrorCode.CONFIGURATION_ERROR, e);
-        }
-    }
-
-    /**
-     * 处理服务器错误
-     *
-     * <p>将 HTTP 服务器错误（5xx）转换为相应的 AIServiceException。
-     * 统一返回 SERVICE_UNAVAILABLE 类型的异常。
-     *
-     * <p>处理策略：
-     * <ul>
-     *   <li>记录详细的错误日志</li>
-     *   <li>包装原始异常信息</li>
-     *   <li>返回标准的 AIServiceException</li>
-     * </ul>
-     *
-     * @param e HttpServerErrorException 异常
-     * @return SERVICE_UNAVAILABLE 类型的 AIServiceException
-     */
-    protected AIServiceException handleServerError(HttpServerErrorException e) {
-        return new AIServiceException("Server error: " + e.getStatusText(),
-                                      AIServiceException.ErrorCode.SERVICE_UNAVAILABLE, e);
-    }
 
     @NotNull
     @Override
@@ -930,24 +797,38 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
                 LOG.debug("Base URL: " + settings.baseUrl);
             }
 
-            HttpHeaders headers = buildHeaders();
-            if (headers == null) {
-                LOG.warn("Failed to build headers for model list request");
-                return new ArrayList<>();
+            // 检查API Key配置
+            if (requiresApiKey()) {
+                String apiKey = settings.apiKey;
+                if (apiKey == null || apiKey.trim().isEmpty()) {
+                    LOG.warn("API Key is required but not configured for provider: " + getProviderId());
+                    return new ArrayList<>();
+                }
             }
 
-            HttpEntity<String> entity = new HttpEntity<>(headers);
             String url = settings.baseUrl + "/models";
 
             if (settings.verboseLogging) {
                 LOG.debug("Requesting models from: " + url);
             }
 
-            ResponseEntity<String> response = restTemplate.exchange(
-                url, HttpMethod.GET, entity, String.class);
+            // 使用IDEA SDK的HttpRequests发送GET请求
+            // 读取响应
+            String responseBody = HttpRequests.request(url)
+                .tuner(connection -> {
+                    // 设置超时
+                    connection.setConnectTimeout(settings.timeout); // 使用设置中的连接超时
+                    connection.setReadTimeout(settings.timeout * 2); // 读取超时是连接超时的2倍
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<String> models = parseModelsResponse(response.getBody());
+                    // 设置Authorization头（如果需要）
+                    if (requiresApiKey()) {
+                        connection.setRequestProperty("Authorization", "Bearer " + settings.apiKey);
+                    }
+                })
+                .connect(HttpRequests.Request::readString);
+
+            if (!responseBody.trim().isEmpty()) {
+                List<String> models = parseModelsResponse(responseBody);
 
                 if (settings.verboseLogging) {
                     LOG.debug("Successfully fetched " + models.size() + " models");
@@ -956,16 +837,10 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
                 return models;
             }
 
-            LOG.warn("Failed to fetch models: HTTP " + response.getStatusCode());
+            LOG.warn("Failed to fetch models: Empty response");
             return new ArrayList<>();
 
-        } catch (HttpClientErrorException e) {
-            LOG.warn("HTTP client error while fetching models: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
-            return new ArrayList<>();
-        } catch (HttpServerErrorException e) {
-            LOG.warn("HTTP server error while fetching models: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
-            return new ArrayList<>();
-        } catch (ResourceAccessException e) {
+        } catch (IOException e) {
             LOG.warn("Network error while fetching models: " + e.getMessage());
             return new ArrayList<>();
         } catch (Exception e) {

@@ -43,7 +43,7 @@ import dev.dong4j.zeka.stack.idea.plugin.util.JavaDocBundle;
  * @author dong4j
  * @version 1.0.0
  */
-@SuppressWarnings("D")
+@SuppressWarnings( {"D", "DuplicatedCode"})
 public class JavaDocSettingsPanel {
 
     private JPanel mainPanel;
@@ -198,7 +198,7 @@ public class JavaDocSettingsPanel {
                                  createAdvancedConfigPanel(timeoutSpinner,
                                                            "settings.timeout.hint"))
             .addComponent(verboseLoggingCheckBox)
-            .addComponent(performanceModeCheckBox)
+            .addComponent(createCheckBoxWithHint(performanceModeCheckBox, "settings.performance.mode.hint"))
             .addSeparator(10)
 
             .addComponent(new JBLabel(JavaDocBundle.message("settings.prompt.templates")))
@@ -218,6 +218,7 @@ public class JavaDocSettingsPanel {
         // 创建右侧按钮面板
         JPanel rightPanel = new JPanel(new BorderLayout(5, 0));
         rightPanel.add(refreshModelsButton, BorderLayout.WEST);
+        rightPanel.add(testConnectionButton, BorderLayout.CENTER);
         
         JBLabel hintLabel = new JBLabel(JavaDocBundle.message("settings.model.hint"));
         hintLabel.setFont(hintLabel.getFont().deriveFont(hintLabel.getFont().getSize() - 2.0f));
@@ -232,7 +233,6 @@ public class JavaDocSettingsPanel {
     private JPanel createApiKeyPanel() {
         JPanel panel = new JPanel(new BorderLayout(5, 0));
         panel.add(apiKeyField, BorderLayout.CENTER);
-        panel.add(testConnectionButton, BorderLayout.EAST);
         return panel;
     }
 
@@ -250,6 +250,22 @@ public class JavaDocSettingsPanel {
         hintLabel.setPreferredSize(new Dimension(300, hintLabel.getPreferredSize().height));
         panel.add(hintLabel, BorderLayout.CENTER);
 
+        return panel;
+    }
+
+    private JPanel createCheckBoxWithHint(JBCheckBox checkBox, String hintKey) {
+        JPanel panel = new JPanel(new BorderLayout(5, 0));
+
+        // 复选框放在左侧
+        panel.add(checkBox, BorderLayout.WEST);
+
+        // 提示文本放在右侧
+        JBLabel hintLabel = new JBLabel(JavaDocBundle.message(hintKey));
+        hintLabel.setFont(hintLabel.getFont().deriveFont(hintLabel.getFont().getSize() - 2.0f));
+        hintLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
+        hintLabel.setPreferredSize(new Dimension(400, hintLabel.getPreferredSize().height));
+        panel.add(hintLabel, BorderLayout.CENTER);
+        
         return panel;
     }
 

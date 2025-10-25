@@ -92,6 +92,58 @@ public enum AIProviderType {
     ),
 
     /**
+     * LM Studio 服务提供商
+     *
+     * <p>LM Studio 是一个本地运行的开源大语言模型服务。
+     * 提供 OpenAI 兼容的 API 接口，支持多种开源模型。
+     *
+     * <p>特点：
+     * <ul>
+     *   <li>本地运行，数据隐私安全</li>
+     *   <li>兼容 OpenAI API</li>
+     *   <li>支持多种开源模型</li>
+     *   <li>不需要 API Key</li>
+     *   <li>免费使用</li>
+     * </ul>
+     */
+    LM_STUDIO(
+        "lmstudio",
+        "LM Studio (本地)",
+        "http://localhost:1234/v1",
+        "gpt-3.5-turbo",
+        false,
+        List.of(
+            "qwen3-8b"
+               )
+    ),
+
+    /**
+     * 硅基流动服务提供商
+     *
+     * <p>硅基流动提供的 AI 服务，支持多种开源和商业模型。
+     * 提供 OpenAI 兼容的 API 接口。
+     *
+     * <p>特点：
+     * <ul>
+     *   <li>兼容 OpenAI API</li>
+     *   <li>支持多种开源模型</li>
+     *   <li>需要 API Key</li>
+     *   <li>性能稳定</li>
+     *   <li>价格合理</li>
+     * </ul>
+     */
+    SILICONFLOW(
+        "siliconflow",
+        "硅基流动 (SiliconFlow)",
+        "https://api.siliconflow.cn/v1",
+        "deepseek-chat",
+        true,
+        List.of(
+            "qwen3-8b"
+               )
+    ),
+
+    /**
      * 自定义服务提供商
      *
      * <p>兼容 OpenAI API 的自定义服务提供商。
@@ -111,18 +163,9 @@ public enum AIProviderType {
         "https://api.openai.com/v1",
         "gpt-3.5-turbo",
         true,
-        Arrays.asList(
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-16k",
-            "gpt-4",
-            "gpt-4-turbo",
-            "gpt-4-turbo-preview",
-            "gpt-4-32k",
-            "gpt-35-turbo",
-            "claude-3-sonnet",
-            "claude-3-opus",
-            "gemini-pro"
-                     )
+        List.of(
+            "qwen3-8b"
+               )
     );
 
     /**
