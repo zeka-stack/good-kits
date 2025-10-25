@@ -10,27 +10,56 @@ import lombok.Data;
 
 /**
  * 统一格式插件设置面板
+ * <p>
+ * 该类用于展示和管理统一格式化插件的设置界面，提供文件模板、Live Template、代码风格和使用统计等功能的开关配置。
+ * 用户可以通过该面板对插件的各项功能进行启用或禁用设置，并将配置保存或恢复到指定的设置对象中。
  *
  * @author dong4j
  * @version 1.0.0
  * @email "mailto:dong4j@gmail.com"
- * @date 2024.12.19 15:30
+ * @date 2025.10.25
  * @since 1.0.0
  */
 @Data
 public class UniformFormatSettingsPanel {
 
+    /**
+     * 主界面主面板，用于承载主要功能组件和布局
+     * -- GETTER --
+     * 获取主面板组件
+     * <p>
+     * 返回应用程序的主面板，用于展示主要界面内容。
+     */
     private JPanel mainPanel;
+    /** 文件模板启用状态复选框 */
     private JBCheckBox enableFileTemplatesCheckBox;
+    /** 启用活模板的复选框 */
     private JBCheckBox enableLiveTemplatesCheckBox;
+    /** 启用代码样式检查的复选框 */
     private JBCheckBox enableCodeStyleCheckBox;
+    /** 启用统计信息的复选框 */
     private JBCheckBox enableStatisticsCheckBox;
+    /** 描述标签，用于显示相关信息 */
     private JBLabel descriptionLabel;
 
+    /**
+     * 构造函数，初始化统一格式设置面板
+     * <p>
+     * 调用初始化组件方法，完成面板的初始化工作
+     */
     public UniformFormatSettingsPanel() {
         initializeComponents();
     }
 
+    /**
+     * 初始化插件的组件和布局
+     * <p>
+     * 该方法用于创建并配置插件所需的各个组件，包括复选框和描述标签，并使用 FormBuilder
+     * 构建最终的布局面板。所有组件默认状态为选中。
+     *
+     * @author 插件开发人员
+     * @since 1.0
+     */
     private void initializeComponents() {
         // 创建组件
         enableFileTemplatesCheckBox = new JBCheckBox("启用文件模板");
@@ -66,6 +95,14 @@ public class UniformFormatSettingsPanel {
             .getPanel();
     }
 
+    /**
+     * 判断当前设置是否与给定的设置状态不同
+     * <p>
+     * 比较当前设置项与传入的设置状态，若任一设置项的选中状态不同，则返回 true。
+     *
+     * @param settings 要比较的设置状态对象
+     * @return 如果当前设置与给定设置状态不同，返回 true；否则返回 false
+     */
     public boolean isModified(UniformFormatSettingsState settings) {
         return enableFileTemplatesCheckBox.isSelected() != settings.isEnableFileTemplates() ||
                enableLiveTemplatesCheckBox.isSelected() != settings.isEnableLiveTemplates() ||
@@ -73,6 +110,13 @@ public class UniformFormatSettingsPanel {
                enableStatisticsCheckBox.isSelected() != settings.isEnableStatistics();
     }
 
+    /**
+     * 应用格式设置状态到指定的设置对象
+     * <p>
+     * 将复选框的状态应用到统一格式设置状态对象中，用于配置文件模板、实时模板、代码样式和统计功能的启用状态。
+     *
+     * @param settings 格式设置状态对象，用于存储配置信息
+     */
     public void apply(UniformFormatSettingsState settings) {
         settings.setEnableFileTemplates(enableFileTemplatesCheckBox.isSelected());
         settings.setEnableLiveTemplates(enableLiveTemplatesCheckBox.isSelected());
@@ -80,6 +124,13 @@ public class UniformFormatSettingsPanel {
         settings.setEnableStatistics(enableStatisticsCheckBox.isSelected());
     }
 
+    /**
+     * 重置统一格式设置状态
+     * <p>
+     * 根据传入的设置状态，更新相关复选框的选中状态。
+     *
+     * @param settings 统一格式设置状态对象
+     */
     public void reset(UniformFormatSettingsState settings) {
         enableFileTemplatesCheckBox.setSelected(settings.isEnableFileTemplates());
         enableLiveTemplatesCheckBox.setSelected(settings.isEnableLiveTemplates());
@@ -87,7 +138,4 @@ public class UniformFormatSettingsPanel {
         enableStatisticsCheckBox.setSelected(settings.isEnableStatistics());
     }
 
-    public JPanel getMainPanel() {
-        return mainPanel;
-    }
 }

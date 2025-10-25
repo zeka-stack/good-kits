@@ -23,23 +23,34 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 统一代码风格方案提供者
+ * <p>
+ * 该类用于为项目提供统一的代码风格方案，包括方案的导入、设置以及状态检查等功能。它通过读取预定义的配置文件，创建并应用统一的代码风格设置，确保项目中代码风格的一致性。
+ * <p>
+ * 主要功能包括：
+ * - 导入统一代码风格配置文件并应用到当前项目
+ * - 检查当前项目是否已应用统一代码风格方案
+ * - 提供统一的代码风格名称和配置文件路径
  *
  * @author dong4j
  * @version 1.0.0
- * @email "mailto:dong4j@gmail.com"
- * @date 2024.12.19 15:30
+ * @date 2025.10.25
  * @since 1.0.0
  */
 @SuppressWarnings("D")
 @Slf4j
 public class UniformCodeStyleSchemeProvider {
-
-    /** UNIFORM_CODE_STYLE_NAME */
+    /** 统一代码风格的配置名称，用于标识启用统一代码风格的配置项 */
     public static final String UNIFORM_CODE_STYLE_NAME = "uniform-code-style";
+    /** 统一代码风格配置文件路径，由统一代码风格名称加上 ".xml" 后缀组成 */
     private static final String UNIFORM_CODE_STYLE_FILE = UNIFORM_CODE_STYLE_NAME + ".xml";
 
     /**
-     * 为项目提供统一代码风格方案
+     * 为指定项目设置统一的代码风格方案
+     * <p>
+     * 该方法会检查是否存在名为 UNIFORM_CODE_STYLE_NAME 的代码风格方案，若已存在则设置为当前方案；
+     * 若不存在，则从资源文件中加载代码风格配置文件，并导入到项目中，最后设置为默认方案。
+     *
+     * @param project 要设置统一代码风格的项目对象
      */
     public static void provideUniformCodeStyleScheme(Project project) {
         ApplicationManager.getApplication().runWriteAction(() -> {
@@ -81,6 +92,12 @@ public class UniformCodeStyleSchemeProvider {
 
     /**
      * 导入代码样式方案
+     * <p>
+     * 从指定的文件中加载代码样式配置，并创建新的代码样式方案，将其添加到方案列表中，并设置为当前方案。
+     *
+     * @param project      当前项目对象
+     * @param selectedFile 选择的文件对象，用于加载样式配置
+     * @throws SchemeImportException 如果导入样式方案过程中发生异常
      */
     private static void importScheme(@NotNull Project project, @NotNull VirtualFile selectedFile) throws SchemeImportException {
         Element rootElement = SchemeImportUtil.loadSchemeDom(selectedFile);
@@ -99,6 +116,12 @@ public class UniformCodeStyleSchemeProvider {
 
     /**
      * 查找方案根元素
+     * <p>
+     * 根据传入的根元素查找方案的根节点。根据不同的根元素名称（如"project"或"component"）执行不同的查找逻辑，最终返回找到的根元素。
+     *
+     * @param rootElement 根元素对象
+     * @return 找到的方案根元素
+     * @throws SchemeImportException 当无法找到有效的方案根元素时抛出异常
      */
     @NotNull
     private static Element findSchemeRoot(@NotNull Element rootElement) throws SchemeImportException {
@@ -132,7 +155,13 @@ public class UniformCodeStyleSchemeProvider {
     }
 
     /**
-     * 从 DOM 读取方案
+     * 从 DOM 元素中读取代码风格方案的配置信息
+     * <p>
+     * 该方法用于解析传入的 DOM 元素，加载代码风格设置，并更新指定的代码风格方案。
+     *
+     * @param rootElement DOM 根元素，包含方案的配置信息
+     * @param scheme      要更新的代码风格方案对象
+     * @throws SchemeImportException 如果在读取过程中发生异常
      */
     private static void readSchemeFromDom(@NotNull Element rootElement, @NotNull CodeStyleScheme scheme)
         throws SchemeImportException {
@@ -143,7 +172,13 @@ public class UniformCodeStyleSchemeProvider {
     }
 
     /**
-     * 加载设置
+     * 加载代码样式设置
+     * <p>
+     * 从给定的根元素中读取代码样式设置，并应用到指定的设置对象中。
+     *
+     * @param rootElement 根元素，用于读取设置数据
+     * @param settings    目标设置对象，用于存储读取的配置
+     * @throws SchemeImportException 如果加载设置过程中发生异常
      */
     private static void loadSettings(@NotNull Element rootElement, @NotNull CodeStyleSettings settings) throws SchemeImportException {
         try {
@@ -154,7 +189,12 @@ public class UniformCodeStyleSchemeProvider {
     }
 
     /**
-     * 检查是否已提供统一代码风格方案
+     * 检查是否已提供统一的代码风格方案
+     * <p>
+     * 该方法用于判断当前项目中是否已经配置了名为 UNIFORM_CODE_STYLE_NAME 的统一代码风格方案，并且该方案是否为当前默认方案。
+     *
+     * @param project 项目对象，用于获取代码风格方案信息
+     * @return 如果存在且为当前默认方案，返回 true；否则返回 false
      */
     public static boolean isUniformCodeStyleSchemeProvided(Project project) {
         try {
