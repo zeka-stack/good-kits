@@ -46,53 +46,97 @@ import dev.dong4j.zeka.stack.idea.plugin.util.JavaDocBundle;
 @SuppressWarnings( {"D", "DuplicatedCode"})
 public class JavaDocSettingsPanel {
 
+    /** 主界面主面板，用于承载主要功能组件和布局 */
     private JPanel mainPanel;
 
     // AI 提供商配置
+    /** AI 服务商下拉选择框 */
     private ComboBox<String> providerComboBox;
+    /** 模型下拉框组件，用于选择不同的模型 */
     private ComboBox<String> modelComboBox;
+    /** 基础 URL 输入框 */
     private JBTextField baseUrlField;
+    /** API 密钥输入框 */
     private JBPasswordField apiKeyField;
+    /** 测试连接按钮 */
     private JButton testConnectionButton;
+    /** 刷新模型按钮 */
     private JButton refreshModelsButton;
 
     // 验证状态标记
+    /** 配置是否已验证的标记 */
     private boolean configurationVerified = false;
 
     // 功能配置
+    /** 生成针对类的复选框 */
     private JBCheckBox generateForClassCheckBox;
+    /** 方法生成复选框，用于控制是否为方法生成代码 */
     private JBCheckBox generateForMethodCheckBox;
+    /** 生成字段的复选框 */
     private JBCheckBox generateForFieldCheckBox;
+    /** 跳过已存在的文件复选框 */
     private JBCheckBox skipExistingCheckBox;
+    /** 优化类代码的复选框 */
     private JBCheckBox optimizeClassCodeCheckBox;
+    /** 最大类代码行数设置控件 */
     private JSpinner maxClassCodeLinesSpinner;
 
     // 语言支持
+    /** Java 语言支持选项框 */
     private JBCheckBox javaCheckBox;
+    /** Kotlin 语言支持开关控件 */
     private JBCheckBox kotlinCheckBox;
 
     // 高级配置
+    /** 最大重试次数的下拉选择器 */
     private JSpinner maxRetriesSpinner;
+    /** 超时时间选择器，用于设置请求超时时间 */
     private JSpinner timeoutSpinner;
+    /** 温度选择下拉框 */
     private JSpinner temperatureSpinner;
+    /** 最大令牌数输入控件 */
     private JSpinner maxTokensSpinner;
+    /** 顶部参数的下拉选择器控件 */
     private JSpinner topPSpinner;
+    /** 用于选择 Top K 值的下拉框组件 */
     private JSpinner topKSpinner;
+    /** 偏差惩罚系数调节器，用于设置生成文本时的偏差惩罚值 */
     private JSpinner presencePenaltySpinner;
+    /** 日志详细模式复选框，用于控制是否输出详细日志信息 */
     private JBCheckBox verboseLoggingCheckBox;
+    /** 性能模式复选框，用于启用或禁用性能优化模式 */
     private JBCheckBox performanceModeCheckBox;
 
+    /** 系统提示文本区域，用于显示或编辑系统提示内容 */
     public JTextArea systemPromptTextArea;
+    /** 类提示文本区域，用于显示或输入类相关的提示信息 */
     public JTextArea classPromptTextArea;
+    /** 方法提示文本区域，用于显示方法相关的提示信息 */
     public JTextArea methodPromptTextArea;
+    /** 提示信息显示区域，用于展示操作提示或说明文字 */
     public JTextArea fieldPromptTextArea;
+    /** 测试提示文本区域 */
     public JTextArea testPromptTextArea;
 
+    /**
+     * 构造函数，初始化 JavaDoc 设置面板
+     * <p>
+     * 调用创建用户界面和设置事件监听器的方法，完成面板的初始化
+     */
     public JavaDocSettingsPanel() {
         createUI();
         setupListeners();
     }
 
+    /**
+     * 初始化用户界面组件，创建并配置所有 UI 元素，包括下拉框、文本字段、按钮、复选框等。
+     * <p>
+     * 该方法负责构建整个设置界面的主面板，包括 AI 提供商配置、模型选择、基础 URL 和 API 密钥输入、
+     * 连接测试按钮、模型刷新按钮、生成选项、语言支持、高级配置参数以及提示模板区域。
+     *
+     * @param 无 参数
+     * @return 无 返回值
+     */
     private void createUI() {
         // AI 提供商配置
         providerComboBox = new ComboBox<>(AIProviderType.getAllDisplayNames().toArray(new String[0]));
@@ -254,6 +298,13 @@ public class JavaDocSettingsPanel {
         return mainPanel;
     }
 
+    /**
+     * 创建模型配置面板
+     * <p>
+     * 用于构建包含模型选择下拉框和右侧按钮的面板，包含刷新模型按钮、测试连接按钮以及提示标签。
+     *
+     * @return 模型配置面板
+     */
     private JPanel createModelPanel() {
         JPanel panel = new JPanel(new BorderLayout(5, 0));
         panel.add(modelComboBox, BorderLayout.CENTER);
@@ -273,12 +324,29 @@ public class JavaDocSettingsPanel {
         return panel;
     }
 
+    /**
+     * 创建API密钥输入面板
+     * <p>
+     * 初始化并返回一个包含API密钥输入字段的面板，使用BorderLayout布局。
+     *
+     * @return 包含API密钥输入字段的面板
+     */
     private JPanel createApiKeyPanel() {
         JPanel panel = new JPanel(new BorderLayout(5, 0));
         panel.add(apiKeyField, BorderLayout.CENTER);
         return panel;
     }
 
+    /**
+     * 创建高级配置面板，包含一个带宽度限制的 JSpinner 和提示标签
+     * <p>
+     * 该方法用于构建一个布局面板，左侧放置一个设置宽度的 JSpinner 控件，右侧放置一个带有提示信息的标签。
+     * 提示标签的字体大小和颜色会根据系统 UI 设置进行调整。
+     *
+     * @param spinner 用于配置的 JSpinner 控件
+     * @param hintKey 提示信息的键，用于从资源文件中获取对应的提示文本
+     * @return 包含 JSpinner 和提示标签的面板
+     */
     private JPanel createAdvancedConfigPanel(JSpinner spinner, String hintKey) {
         JPanel panel = new JPanel(new BorderLayout(5, 0));
 
@@ -296,6 +364,15 @@ public class JavaDocSettingsPanel {
         return panel;
     }
 
+    /**
+     * 创建包含复选框和提示文本的面板
+     * <p>
+     * 该方法用于创建一个包含复选框和提示文本的面板，提示文本通过指定的键从资源文件中获取，并设置为较暗的字体颜色和固定宽度。
+     *
+     * @param checkBox 要添加到面板中的复选框
+     * @param hintKey  用于获取提示文本的资源键
+     * @return 包含复选框和提示文本的面板
+     */
     private JPanel createCheckBoxWithHint(JBCheckBox checkBox, String hintKey) {
         JPanel panel = new JPanel(new BorderLayout(5, 0));
 
@@ -355,6 +432,13 @@ public class JavaDocSettingsPanel {
         return mainPanel;
     }
 
+    /**
+     * 创建用于显示提示配置的选项卡面板
+     * <p>
+     * 初始化一个包含多个提示配置选项卡的 JBTabbedPane，每个选项卡对应不同的提示类型，如系统提示、类提示、方法提示等。
+     *
+     * @return 包含提示配置选项卡的 JBTabbedPane 实例
+     */
     private JBTabbedPane createPromptTabbedPane() {
         // Prompt 配置 - Tab 页
         JBTabbedPane promptTabbedPane = new JBTabbedPane();
@@ -370,6 +454,15 @@ public class JavaDocSettingsPanel {
         return promptTabbedPane;
     }
 
+    /**
+     * 创建提示信息标签页面板
+     * <p>
+     * 根据给定的文本区域和提示类型，创建一个包含文本区域和重置按钮的标签页面板。
+     *
+     * @param textArea   文本区域组件
+     * @param promptType 提示类型，用于加载对应的提示信息和资源
+     * @return 包含文本区域和重置按钮的面板
+     */
     private JPanel createPromptTab(JTextArea textArea, String promptType) {
         JPanel tabPanel = new JPanel(new BorderLayout());
 
@@ -391,6 +484,14 @@ public class JavaDocSettingsPanel {
         return tabPanel;
     }
 
+    /**
+     * 将指定类型的提示内容重置为默认模板
+     * <p>
+     * 根据传入的提示类型，获取对应的默认提示模板，并将其设置到指定的文本区域中。
+     *
+     * @param promptType 提示类型，如 "system"、"class"、"method" 等
+     * @param textArea   要设置默认模板的文本区域组件
+     */
     public void resetPromptToDefault(String promptType, JTextArea textArea) {
         String defaultTemplate = switch (promptType) {
             case "system" -> SettingsState.getDefaultSystemPromptTemplate();
@@ -403,6 +504,14 @@ public class JavaDocSettingsPanel {
         textArea.setText(defaultTemplate);
     }
 
+    /**
+     * 创建一个带有指定文本区域的滚动面板
+     * <p>
+     * 该方法用于创建一个 JScrollPane 实例，并设置其首选大小和滚动条策略。
+     *
+     * @param textArea 要放入滚动面板中的文本区域
+     * @return 配置好的滚动面板实例
+     */
     private JScrollPane createScrollPane(JTextArea textArea) {
         JBScrollPane scrollPane = new JBScrollPane(textArea);
         scrollPane.setPreferredSize(new Dimension(500, 150));
@@ -411,6 +520,16 @@ public class JavaDocSettingsPanel {
         return scrollPane;
     }
 
+    /**
+     * 初始化各种监听器，用于响应用户界面组件的变化
+     * <p>
+     * 该方法为各个输入组件添加动作监听器，当组件内容发生变化时，触发相应的更新或验证状态清除操作。
+     * 包括提供商、Base URL、API Key、模型选择以及代码优化配置等变化的监听。
+     *
+     * @param 无
+     * @return 无
+     * @throws 无
+     */
     private void setupListeners() {
         // 提供商变更时更新模型列表和默认值
         providerComboBox.addActionListener(e -> {
@@ -437,6 +556,17 @@ public class JavaDocSettingsPanel {
         });
     }
 
+    /**
+     * 更新模型列表，根据选择的提供商标识符加载对应的模型选项
+     * <p>
+     * 该方法首先获取用户选择的提供商显示名称，将其转换为对应的提供商标识符。
+     * 然后根据该标识符获取对应的提供商类型，并加载该类型支持的所有模型。
+     * 最后将用户之前选择的模型恢复到下拉框中，若为空则使用默认模型。
+     * 同时设置模型输入框的提示文本。
+     *
+     * @param 无 参数
+     * @return 无 返回值
+     */
     private void updateModelList() {
         String displayName = (String) providerComboBox.getSelectedItem();
         if (displayName == null) {
@@ -732,6 +862,16 @@ public class JavaDocSettingsPanel {
         }).start();
     }
 
+    /**
+     * 更新默认值配置，根据选择的提供者设置对应的配置信息
+     * <p>
+     * 该方法首先获取当前选择的显示名称，将其转换为对应的提供者标识符。如果标识符有效，则获取对应的提供者类型。
+     * 接着，尝试从已保存的配置中查找对应的配置信息，如果存在则使用该配置；否则使用提供者类型中的默认配置。
+     * 最后，将配置信息填充到对应的 UI 控件中。
+     *
+     * @param 无 该方法不接受任何参数
+     * @return 无 该方法无返回值
+     */
     private void updateDefaultValues() {
         String displayName = (String) providerComboBox.getSelectedItem();
         if (displayName == null) {
@@ -784,6 +924,12 @@ public class JavaDocSettingsPanel {
                         .orElse(null));
     }
 
+    /**
+     * 更新API密钥的可见性状态
+     * <p>
+     * 根据下拉框中选择的提供商显示名称，判断是否需要显示API密钥字段和测试连接按钮。
+     * 如果选择的提供商为空，则禁用API密钥字段和测试连接按钮；否则根据提供商类型决定是否启用相关控件。
+     */
     private void updateApiKeyVisibility() {
         String displayName = (String) providerComboBox.getSelectedItem();
         if (displayName == null) {
@@ -800,6 +946,12 @@ public class JavaDocSettingsPanel {
         testConnectionButton.setEnabled(true);
     }
 
+    /**
+     * 测试与 AI 服务提供商的连接
+     * <p>
+     * 该方法用于验证当前配置是否能够成功创建 AI 服务提供商，并测试其配置是否有效。
+     * 在测试过程中，会临时允许创建未验证的提供商，测试完成后会根据结果更新配置状态。
+     */
     private void testConnection() {
         SettingsState testSettings = getSettings();
         // 临时允许创建未验证的提供商用于测试
@@ -878,6 +1030,13 @@ public class JavaDocSettingsPanel {
         }).start();
     }
 
+    /**
+     * 获取主面板组件
+     * <p>
+     * 返回应用程序中主面板的引用，用于界面展示或操作。
+     *
+     * @return 主面板组件
+     */
     public JPanel getPanel() {
         return mainPanel;
     }

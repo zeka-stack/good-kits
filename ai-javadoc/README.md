@@ -162,8 +162,6 @@ In the settings panel, you can also configure:
 Contributions to the IntelliJ AI Javadoc Plugin are welcome! If you encounter any bugs, have feature requests, or would like to contribute
 code improvements, please submit an issue or pull request on the GitHub repository.
 
-Before contributing, please review the [contribution guidelines](CONTRIBUTING.md) or send an email to dong4j@gmail.com.
-
 ## Author
 
 dong4j dong4j@gmail.com
@@ -317,4 +315,3 @@ Thanks to the following service providers for making this project possible:
 
 - **Alibaba Cloud QianWen** - Providing powerful Chinese AI services
 - **Ollama** - Providing local large language model runtime environment
-- **IntelliJ Platform** - Providing excellent plugin development framework

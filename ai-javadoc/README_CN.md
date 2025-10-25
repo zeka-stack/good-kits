@@ -156,8 +156,6 @@ Ollama 支持在本地运行开源大语言模型，数据完全私有，无需 
 
 欢迎为 IntelliJ AI Javadoc 插件做出贡献！如果您遇到任何错误、有功能请求或想要贡献代码改进，请在 GitHub 仓库上提交问题或拉取请求。
 
-在贡献之前，请查看[贡献指南](CONTRIBUTING.md)或发送电子邮件至 dong4j@gmail.com。
-
 ## 作者
 
 dong4j dong4j@gmail.com
@@ -309,5 +307,4 @@ A: 根据您的需求选择：
 
 - **阿里云通义千问** - 提供强大的中文 AI 服务
 - **Ollama** - 提供本地大语言模型运行环境
-- **IntelliJ Platform** - 提供优秀的插件开发框架
 

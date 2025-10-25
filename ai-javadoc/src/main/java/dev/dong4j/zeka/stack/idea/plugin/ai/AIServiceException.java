@@ -37,24 +37,61 @@ public class AIServiceException extends Exception {
         UNKNOWN_ERROR
     }
 
+    /**
+     * 构造一个AIServiceException对象，使用指定的错误信息和未知错误码
+     *
+     * @param message 错误信息
+     */
     public AIServiceException(String message) {
         this(message, ErrorCode.UNKNOWN_ERROR);
     }
 
+    /**
+     * 构造一个AIServiceException对象
+     * <p>
+     * 初始化异常信息和错误码
+     *
+     * @param message   异常的详细信息
+     * @param errorCode 错误码
+     */
     public AIServiceException(String message, ErrorCode errorCode) {
         super(message);
         this.errorCode = errorCode;
     }
 
+    /**
+     * 构造一个AIServiceException异常对象
+     * <p>
+     * 使用指定的错误信息、错误码和原因构建异常对象
+     *
+     * @param message 异常的详细信息说明
+     * @param cause   引起当前异常的底层异常
+     */
     public AIServiceException(String message, Throwable cause) {
         this(message, ErrorCode.UNKNOWN_ERROR, cause);
     }
 
+    /**
+     * 构造一个AIServiceException异常对象
+     * <p>
+     * 初始化异常信息、错误码以及异常原因
+     *
+     * @param message   异常的详细信息说明
+     * @param errorCode 错误码，用于标识异常类型
+     * @param cause     引起当前异常的底层异常
+     */
     public AIServiceException(String message, ErrorCode errorCode, Throwable cause) {
         super(message, cause);
         this.errorCode = errorCode;
     }
 
+    /**
+     * 获取错误码信息
+     * <p>
+     * 返回当前系统或操作的错误码
+     *
+     * @return 错误码对象
+     */
     public ErrorCode getErrorCode() {
         return errorCode;
     }

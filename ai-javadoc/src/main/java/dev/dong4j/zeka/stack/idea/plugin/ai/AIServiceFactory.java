@@ -47,6 +47,7 @@ import dev.dong4j.zeka.stack.idea.plugin.util.JavaDocBundle;
  */
 public class AIServiceFactory {
 
+    /** 服务提供者映射，用于存储不同服务名称对应的实现类 */
     private static final Map<String, Class<? extends AIServiceProvider>> PROVIDERS = new HashMap<>();
 
     static {

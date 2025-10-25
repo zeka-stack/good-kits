@@ -39,14 +39,21 @@ import lombok.Setter;
  */
 public class DocumentationTask {
 
+    /** 当前 Psi 元素对象，用于表示代码中的语法结构节点 */
     private final PsiElement element;
+    /** 业务操作的唯一标识码 */
     private final String code;
+    /** 任务类型，表示当前任务的类型信息 */
     private final TaskType type;
+    /** 文件路径 */
     private final String filePath;
+    /** 任务当前状态 */
     private TaskStatus status;
+    /** 结果数据 */
     @Setter
     @Getter
     private String result;
+    /** 错误信息描述 */
     @Getter
     @Setter
     private String errorMessage;
@@ -75,11 +82,17 @@ public class DocumentationTask {
      * </ul>
      */
     public enum TaskType {
+        /** 用户的唯一标识符，用于身份验证和数据关联 */
         CLASS,
+        /** 方法执行结果状态码 */
         METHOD,
+        /** 测试方法 */
         TEST_METHOD,
+        /** 用户的唯一标识符，用于识别和区分不同用户 */
         FIELD,
+        /** 接口定义 */
         INTERFACE,
+        /** 枚举类型 */
         ENUM
     }
 
@@ -107,13 +120,28 @@ public class DocumentationTask {
      * </ul>
      */
     public enum TaskStatus {
+        /** 任务状态标识，用于表示当前任务的处理状态 */
         PENDING,    // 等待处理
+        /** 用于存储用户访问令牌的值 */
         PROCESSING, // 处理中
+        /** 完成状态标志 */
         COMPLETED,  // 已完成
+        /** 用于标识操作失败的状态码 */
         FAILED,     // 失败
+        /** 跳过标记，用于指示当前条目应被跳过处理 */
         SKIPPED     // 跳过
     }
 
+    /**
+     * 构造一个 DocumentationTask 对象
+     * <p>
+     * 初始化任务的基本信息，包括元素、代码内容、任务类型、文件路径和初始状态
+     *
+     * @param element  元素对象，表示代码中的某个元素
+     * @param code     代码内容字符串
+     * @param type     任务类型，表示任务的类别
+     * @param filePath 文件路径，表示代码所在的文件路径
+     */
     public DocumentationTask(@NotNull PsiElement element,
                              @NotNull String code,
                              @NotNull TaskType type,
@@ -125,31 +153,73 @@ public class DocumentationTask {
         this.status = TaskStatus.PENDING;
     }
 
+    /**
+     * 获取当前元素对象
+     * <p>
+     * 返回与当前对象关联的 PsiElement 实例，该元素通常表示代码中的某个结构或节点。
+     *
+     * @return 当前关联的 PsiElement 对象
+     */
     @NotNull
     public PsiElement getElement() {
         return element;
     }
 
+    /**
+     * 获取验证码
+     * <p>
+     * 返回当前存储的验证码值
+     *
+     * @return 验证码
+     */
     @NotNull
     public String getCode() {
         return code;
     }
 
+    /**
+     * 获取任务类型
+     * <p>
+     * 返回当前任务的类型信息
+     *
+     * @return 任务类型
+     */
     @NotNull
     public TaskType getType() {
         return type;
     }
 
+    /**
+     * 获取文件路径
+     * <p>
+     * 返回当前对象所持有的文件路径字符串。
+     *
+     * @return 文件路径
+     */
     @NotNull
     public String getFilePath() {
         return filePath;
     }
 
+    /**
+     * 获取任务状态
+     * <p>
+     * 返回当前任务的执行状态
+     *
+     * @return 任务状态
+     */
     @NotNull
     public TaskStatus getStatus() {
         return status;
     }
 
+    /**
+     * 设置任务状态
+     * <p>
+     * 将任务的状态设置为指定的值
+     *
+     * @param status 要设置的任务状态，不能为空
+     */
     public void setStatus(@NotNull TaskStatus status) {
         this.status = status;
     }
@@ -175,6 +245,13 @@ public class DocumentationTask {
         return element.getText().substring(0, Math.min(50, element.getText().length())) + "...";
     }
 
+    /**
+     * 返回该文档任务对象的字符串表示形式
+     * <p>
+     * 该方法重写了 Object 类的 toString 方法，用于返回一个包含任务类型、文件路径和状态的字符串信息
+     *
+     * @return 该文档任务对象的字符串表示
+     */
     @Override
     public String toString() {
         return "DocumentationTask{" +

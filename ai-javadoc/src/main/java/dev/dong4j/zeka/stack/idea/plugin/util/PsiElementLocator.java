@@ -65,36 +65,88 @@ public class PsiElementLocator {
      * @param isWholeFile 是否需要为整个文件生成（类内部时为 true）
      */
     public record LocateResult(PsiElement element, LocateType type, boolean isWholeFile) {
+        /**
+         * 构造函数，用于初始化 LocateResult 对象
+         * <p>
+         * 根据传入的 PsiElement、定位类型和是否整个文件的标志来初始化对象
+         *
+         * @param element     要定位的 PsiElement 元素
+         * @param type        定位类型，用于指定定位方式
+         * @param isWholeFile 是否定位整个文件
+         */
         public LocateResult(@NotNull PsiElement element, @NotNull LocateType type, boolean isWholeFile) {
             this.element = element;
             this.type = type;
             this.isWholeFile = isWholeFile;
         }
 
+        /**
+         * 获取当前元素
+         * <p>
+         * 返回当前表示的 PsiElement 对象。
+         *
+         * @return 当前表示的 PsiElement 对象
+         */
         @Override
         @NotNull
         public PsiElement element() {
             return element;
         }
 
+        /**
+         * 获取定位类型
+         * <p>
+         * 返回当前定位的类型信息
+         *
+         * @return 定位类型
+         */
         @Override
         @NotNull
         public LocateType type() {
             return type;
         }
 
+        /**
+         * 判断当前类型是否为方法类型
+         * <p>
+         * 检查当前对象的类型是否为 LocateType.METHOD
+         *
+         * @return 如果类型为方法类型，返回 true；否则返回 false
+         */
         public boolean isMethod() {
             return type == LocateType.METHOD;
         }
 
+        /**
+         * 判断当前类型是否为字段类型
+         * <p>
+         * 检查当前对象的 type 字段是否等于 LocateType.FIELD，返回对应的布尔值
+         *
+         * @return 如果类型为字段类型，返回 true；否则返回 false
+         */
         public boolean isField() {
             return type == LocateType.FIELD;
         }
 
+        /**
+         * 判断当前类型是否为类类型
+         * <p>
+         * 检查当前对象的类型是否为LocateType.CLASS
+         *
+         * @return 如果类型为类类型，返回true；否则返回false
+         */
         public boolean isClass() {
             return type == LocateType.CLASS;
         }
 
+        /**
+         * 返回对象的字符串表示形式
+         * <p>
+         * 该方法重写 Object 类的 toString 方法，返回包含类型、是否为整个文件以及元素类名的信息字符串
+         *
+         * @return 对象的字符串表示
+         */
+        @NotNull
         @Override
         public String toString() {
             return String.format("LocateResult{type=%s, isWholeFile=%s, element=%s}",
@@ -354,18 +406,12 @@ public class PsiElementLocator {
      */
     @NotNull
     public static String getTypeDescription(@NotNull LocateType type) {
-        switch (type) {
-            case METHOD:
-                return "方法";
-            case FIELD:
-                return "字段";
-            case CLASS:
-                return "类";
-            case FILE:
-                return "文件";
-            default:
-                return "未知";
-        }
+        return switch (type) {
+            case METHOD -> "方法";
+            case FIELD -> "字段";
+            case CLASS -> "类";
+            case FILE -> "文件";
+        };
     }
 }
 

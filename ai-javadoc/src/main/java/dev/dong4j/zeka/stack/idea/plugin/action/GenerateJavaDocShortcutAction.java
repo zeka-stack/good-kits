@@ -163,6 +163,13 @@ public class GenerateJavaDocShortcutAction extends AnAction {
         return false;
     }
 
+    /**
+     * 获取用于更新操作的线程类型
+     * <p>
+     * 返回在后台线程中执行更新操作的线程类型，以避免阻塞事件调度线程（EDT）。
+     *
+     * @return 更新操作所使用的线程类型
+     */
     @Override
     public @NotNull ActionUpdateThread getActionUpdateThread() {
         // 在后台线程中执行 update，避免阻塞 EDT

@@ -38,19 +38,13 @@ public class ValidationResult {
     @Getter
     private final boolean success;
 
-    /**
-     * 成功或失败的消息
-     */
+    /** 成功或失败的消息 */
     private final String message;
 
-    /**
-     * 错误详细信息（仅在失败时有值）
-     */
+    /** 错误详细信息（仅在失败时有值） */
     private final String errorDetails;
 
-    /**
-     * 关联的异常（可选）
-     */
+    /** 关联的异常（可选） */
     private final Throwable throwable;
 
     /**
@@ -173,6 +167,13 @@ public class ValidationResult {
         return message;
     }
 
+    /**
+     * 返回对象的字符串表示形式
+     * <p>
+     * 构建并返回一个包含对象关键信息的字符串，用于调试或日志记录。
+     *
+     * @return 对象的字符串表示
+     */
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

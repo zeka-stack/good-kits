@@ -50,9 +50,18 @@ import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
  */
 public class TaskCollector {
 
+    /** 项目实例，用于持有和管理当前操作的项目信息 */
     private final Project project;
+    /** 用户设置状态对象，用于存储和管理应用的配置和用户偏好设置 */
     private final SettingsState settings;
 
+    /**
+     * 初始化任务收集器
+     * <p>
+     * 通过传入的项目对象初始化任务收集器，设置项目引用和配置状态实例
+     *
+     * @param project 项目对象，不能为空
+     */
     public TaskCollector(@NotNull Project project) {
         this.project = project;
         this.settings = SettingsState.getInstance();
@@ -202,6 +211,13 @@ public class TaskCollector {
         }
 
         psiFile.accept(new JavaRecursiveElementVisitor() {
+            /**
+             * 访问类元素并根据配置决定是否生成文档任务
+             * <p>
+             * 当访问到类元素时，若配置启用类文档生成且该类满足生成条件，则创建一个类文档生成任务并添加到任务列表中。
+             *
+             * @param aClass 被访问的类元素
+             */
             @Override
             public void visitClass(@NotNull PsiClass aClass) {
                 super.visitClass(aClass);
@@ -211,6 +227,13 @@ public class TaskCollector {
                 }
             }
 
+            /**
+             * 处理方法节点，根据配置决定是否生成文档任务
+             * <p>
+             * 遍历方法节点，若配置允许为方法生成文档且满足条件，则创建文档任务并添加到任务列表中
+             *
+             * @param method 被访问的方法节点
+             */
             @Override
             public void visitMethod(@NotNull PsiMethod method) {
                 super.visitMethod(method);
@@ -223,6 +246,13 @@ public class TaskCollector {
                 }
             }
 
+            /**
+             * 处理字段元素，根据配置决定是否生成文档任务
+             * <p>
+             * 当启用字段文档生成且字段满足条件时，创建并添加文档生成任务
+             *
+             * @param field 被访问的字段元素
+             */
             @Override
             public void visitField(@NotNull PsiField field) {
                 super.visitField(field);
@@ -291,6 +321,15 @@ public class TaskCollector {
         return tasks;
     }
 
+    /**
+     * 递归收集指定目录下的Java文件对应的文档任务
+     * <p>
+     * 该方法会递归遍历指定目录下的所有子目录和文件，对于每个Java文件，调用
+     * collectFromVirtualFile 方法收集文档任务，并将结果添加到任务列表中。
+     *
+     * @param directory 要收集的目录对象
+     * @param tasks     用于存储收集到的文档任务的列表
+     */
     private void collectFromDirectoryRecursive(@NotNull VirtualFile directory,
                                                @NotNull List<DocumentationTask> tasks) {
         if (!directory.isDirectory()) {

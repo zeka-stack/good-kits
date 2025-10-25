@@ -45,16 +45,37 @@ import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
  */
 public class QianWenProvider extends AICompatibleProvider {
 
+    /**
+     * 初始化 QianWenProvider 实例
+     * <p>
+     * 使用给定的 SettingsState 对象初始化 QianWenProvider，调用父类的构造函数进行配置
+     *
+     * @param settings 用于初始化的设置状态对象
+     */
     public QianWenProvider(SettingsState settings) {
         super(settings);
     }
 
+    /**
+     * 获取当前AI服务提供商的ID
+     * <p>
+     * 返回预定义的AI服务提供商类型对应的提供商ID
+     *
+     * @return 当前AI服务提供商的ID
+     */
     @NotNull
     @Override
     public String getProviderId() {
         return AIProviderType.QIANWEN.getProviderId();
     }
 
+    /**
+     * 获取当前AI服务提供商的名称
+     * <p>
+     * 返回AI服务提供商的显示名称，该名称由AIProviderType枚举中的QIANWEN常量提供。
+     *
+     * @return AI服务提供商的显示名称
+     */
     @NotNull
     @Override
     public String getProviderName() {
@@ -78,18 +99,39 @@ public class QianWenProvider extends AICompatibleProvider {
         return AIProviderType.QIANWEN.getSupportedModels();
     }
 
+    /**
+     * 获取默认模型名称
+     * <p>
+     * 返回AI服务提供商默认的模型名称
+     *
+     * @return 默认模型名称
+     */
     @NotNull
     @Override
     public String getDefaultModel() {
         return AIProviderType.QIANWEN.getDefaultModel();
     }
 
+    /**
+     * 获取默认的基础URL
+     * <p>
+     * 返回AI服务提供商默认的基础URL地址。
+     *
+     * @return 默认的基础URL
+     */
     @NotNull
     @Override
     public String getDefaultBaseUrl() {
         return AIProviderType.QIANWEN.getDefaultBaseUrl();
     }
 
+    /**
+     * 判断当前AI服务提供商是否需要API密钥
+     * <p>
+     * 调用对应AI服务提供商的requiresApiKey方法，判断是否需要API密钥
+     *
+     * @return 是否需要API密钥
+     */
     @Override
     public boolean requiresApiKey() {
         return AIProviderType.QIANWEN.requiresApiKey();

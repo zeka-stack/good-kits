@@ -353,15 +353,37 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
      * 服务提供商配置信息
      */
     public static class ProviderConfig {
+        /** 提供商标识符 */
         public String providerId;
+        /** 模型名称 */
         public String modelName;
+        /** 基础请求地址 */
         public String baseUrl;
+        /** API 密钥，用于身份验证和接口调用 */
         public String apiKey;
+        /** 配置是否已验证的标志 */
         public boolean configurationVerified;
+        /** 最近一次验证的时间戳，单位为毫秒 */
         public long lastVerifiedTime;
 
+        /**
+         * 默认构造函数
+         * <p>
+         * 初始化 ProviderConfig 实例的默认构造函数
+         */
         public ProviderConfig() {}
 
+        /**
+         * 构造一个 ProviderConfig 对象
+         * <p>
+         * 初始化 ProviderConfig 实例，设置提供者ID、模型名称、基础URL、API密钥、配置验证状态，并记录最后一次验证时间
+         *
+         * @param providerId            提供者ID
+         * @param modelName             模型名称
+         * @param baseUrl               基础URL
+         * @param apiKey                API密钥
+         * @param configurationVerified 配置是否已验证
+         */
         public ProviderConfig(String providerId, String modelName, String baseUrl, String apiKey, boolean configurationVerified) {
             this.providerId = providerId;
             this.modelName = modelName;
@@ -371,6 +393,15 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             this.lastVerifiedTime = System.currentTimeMillis();
         }
 
+        /**
+         * 判断当前对象与指定对象是否相等
+         * <p>
+         * 该方法重写 Object 类的 equals 方法，用于比较两个 ProviderConfig 对象是否相等。
+         * 比较依据为 providerId、baseUrl 和 apiKey 字段是否相等。
+         *
+         * @param obj 要比较的对象
+         * @return 如果对象相等则返回 true，否则返回 false
+         */
         @Override
         public boolean equals(Object obj) {
             if (this == obj) {
@@ -385,6 +416,13 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
                    Objects.equals(apiKey, that.apiKey);
         }
 
+        /**
+         * 生成对象的哈希码
+         * <p>
+         * 根据 providerId、baseUrl 和 apiKey 三个字段生成哈希码，用于对象的唯一标识。
+         *
+         * @return 对象的哈希码值
+         */
         @Override
         public int hashCode() {
             return Objects.hash(providerId, baseUrl, apiKey);
@@ -583,10 +621,10 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             1. 必须包含完整的 JavaDoc 格式，包括开始标记 /** 和结束标记 */
             2. 使用中文编写注释内容
             3. 注释要准确描述方法的功能、参数、返回值
-            4. 必须包含 @param 标签（如果有参数）
-            5. 必须包含 @return 标签（如果有返回值）
+            4. 如果有参数, 必须包含 @param 标签
+            5. 如果有返回值, 必须包含 @return 标签
             6. 如果有异常抛出，使用 @throws 标签
-            7. 可以使用 @author、@since 等标签
+            7. 可以使用 @since 等标签
             
             # 示例
             输入代码：
@@ -599,7 +637,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
              * 根据用户ID获取用户名称
              * <p>
              * 通过用户ID查找用户并返回用户名称
-             * 
+             *
              * @param userId 用户ID
              * @return 用户名称
              * @throws UserNotFoundException 当用户不存在时抛出
@@ -791,12 +829,26 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
             .getService(SettingsState.class);
     }
 
+    /**
+     * 获取当前设置状态
+     * <p>
+     * 返回当前对象作为设置状态，用于状态管理或数据传递
+     *
+     * @return 当前设置状态，可能为 null
+     */
     @Nullable
     @Override
     public SettingsState getState() {
         return this;
     }
 
+    /**
+     * 加载状态信息到当前对象
+     * <p>
+     * 通过复制传入的 SettingsState 对象的状态数据到当前对象中
+     *
+     * @param state 要加载的状态对象
+     */
     @Override
     public void loadState(@NotNull SettingsState state) {
         XmlSerializerUtil.copyBean(state, this);
@@ -916,6 +968,12 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
         return getAvailableProviders().size() > 1;
     }
 
+    /**
+     * 将当前配置重置为默认值
+     * <p>
+     * 该方法会将所有配置参数恢复到初始默认状态，包括AI提供者、模型名称、基础URL、API密钥等，
+     * 以及生成配置、重试设置、温度参数、最大令牌数等。
+     */
     public void resetToDefaults() {
         aiProvider = AIProviderType.QIANWEN.getProviderId();
         modelName = AIProviderType.QIANWEN.getDefaultModel();

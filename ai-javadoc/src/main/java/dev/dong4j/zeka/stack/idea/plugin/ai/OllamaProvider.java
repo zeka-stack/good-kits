@@ -61,16 +61,37 @@ import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
  */
 public class OllamaProvider extends AICompatibleProvider {
 
+    /**
+     * 构造函数，用于初始化 OllamaProvider 实例
+     * <p>
+     * 通过传入的 SettingsState 对象初始化父类，并设置相关配置
+     *
+     * @param settings 用于初始化的配置状态对象
+     */
     public OllamaProvider(SettingsState settings) {
         super(settings);
     }
 
+    /**
+     * 获取当前AI服务提供商的ID
+     * <p>
+     * 返回AI服务提供商的唯一标识符，该标识符由AI服务类型决定。
+     *
+     * @return AI服务提供商的ID
+     */
     @NotNull
     @Override
     public String getProviderId() {
         return AIProviderType.OLLAMA.getProviderId();
     }
 
+    /**
+     * 获取当前AI服务提供商的名称
+     * <p>
+     * 返回AI服务提供商的显示名称，该名称由AIProviderType枚举中的OLLAMA类型提供。
+     *
+     * @return AI服务提供商的显示名称
+     */
     @NotNull
     @Override
     public String getProviderName() {
@@ -86,15 +107,6 @@ public class OllamaProvider extends AICompatibleProvider {
      * <p>注意：这只是推荐列表，用户可以使用任何已安装的 Ollama 模型。
      * 可以通过 `ollama list` 命令查看本地已安装的模型。
      *
-     * <p>列表内容：
-     * <ul>
-     *   <li>qwen:7b/14b: 通义千问系列，中文支持好</li>
-     *   <li>codellama:7b: 代码专用模型</li>
-     *   <li>deepseek-coder:6.7b: 深度求索代码模型</li>
-     *   <li>llama2:7b: 通用模型</li>
-     *   <li>mistral:7b: 通用模型</li>
-     * </ul>
-     *
      * @return 推荐的模型列表（作为参考）
      */
     @NotNull
@@ -103,18 +115,39 @@ public class OllamaProvider extends AICompatibleProvider {
         return AIProviderType.OLLAMA.getSupportedModels();
     }
 
+    /**
+     * 获取默认模型名称
+     * <p>
+     * 返回当前AI提供者默认的模型名称，调用AIProviderType.OLLAMA的getDefaultModel方法获取。
+     *
+     * @return 默认模型名称
+     */
     @NotNull
     @Override
     public String getDefaultModel() {
         return AIProviderType.OLLAMA.getDefaultModel();
     }
 
+    /**
+     * 获取默认的基础URL
+     * <p>
+     * 返回AI提供者类型为OLLAMA时对应的基础URL。
+     *
+     * @return 默认的基础URL
+     */
     @NotNull
     @Override
     public String getDefaultBaseUrl() {
         return AIProviderType.OLLAMA.getDefaultBaseUrl();
     }
 
+    /**
+     * 判断当前AI服务提供商是否需要API密钥
+     * <p>
+     * 调用对应AI服务提供商的requiresApiKey方法，返回是否需要API密钥
+     *
+     * @return 是否需要API密钥
+     */
     @Override
     public boolean requiresApiKey() {
         return AIProviderType.OLLAMA.requiresApiKey();

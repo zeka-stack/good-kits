@@ -205,6 +205,16 @@ public class NotificationUtil {
         notify(project, JavaDocBundle.message("notification.generation.complete"), content, type);
     }
 
+    /**
+     * 根据任务完成和失败的数量确定通知类型
+     * <p>
+     * 根据传入的完成数量和失败数量判断应使用哪种类型的通知。
+     * 如果有失败任务，则使用警告类型；如果有完成任务但无失败，则使用信息类型；否则默认使用警告类型。
+     *
+     * @param completed 完成的任务数量
+     * @param failed    失败的任务数量
+     * @return 通知类型，可能为 WARNING、INFORMATION
+     */
     @NotNull
     private static NotificationType getNotificationType(int completed, int failed) {
         NotificationType type;

@@ -80,6 +80,14 @@ public class DocumentationGenerationService {
         // 在后台任务中处理
         ProgressManager.getInstance().run(
             new Task.Backgroundable(project, buildProgressTitle(targetDescription), true) {
+                /**
+                 * 执行文档生成任务，处理任务队列并更新进度指示器
+                 * <p>
+                 * 该方法用于启动文档生成任务，检查 AI 服务是否可用，执行任务队列，并根据任务执行结果
+                 * 提供相应的反馈和回调处理。
+                 *
+                 * @param indicator 进度指示器，用于显示任务执行进度
+                 */
                 @Override
                 public void run(@NotNull ProgressIndicator indicator) {
                     TaskExecutor executor = new TaskExecutor(project, indicator);

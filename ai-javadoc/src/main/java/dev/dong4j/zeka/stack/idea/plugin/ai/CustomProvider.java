@@ -58,16 +58,37 @@ import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
  */
 public class CustomProvider extends AICompatibleProvider {
 
+    /**
+     * 初始化 CustomProvider 实例
+     * <p>
+     * 使用给定的 SettingsState 对象初始化父类，并完成自身的初始化逻辑
+     *
+     * @param settings 用于初始化的设置状态对象
+     */
     public CustomProvider(SettingsState settings) {
         super(settings);
     }
 
+    /**
+     * 获取自定义AI提供者的ID
+     * <p>
+     * 返回自定义AI提供者对应的唯一标识符
+     *
+     * @return 自定义AI提供者的ID
+     */
     @NotNull
     @Override
     public String getProviderId() {
         return AIProviderType.CUSTOM.getProviderId();
     }
 
+    /**
+     * 获取当前AI服务提供商的名称
+     * <p>
+     * 返回AI服务提供商的显示名称，该名称由AIProviderType.CUSTOM对应的枚举项提供。
+     *
+     * @return AI服务提供商的显示名称
+     */
     @NotNull
     @Override
     public String getProviderName() {
@@ -83,15 +104,6 @@ public class CustomProvider extends AICompatibleProvider {
      * <p>注意：这只是推荐列表，用户可以使用任何服务提供商支持的模型。
      * 建议查看服务提供商文档了解支持的模型列表。
      *
-     * <p>列表内容：
-     * <ul>
-     *   <li>gpt-3.5-turbo: OpenAI 的快速模型，性价比高</li>
-     *   <li>gpt-4: OpenAI 的高质量模型，效果更好</li>
-     *   <li>gpt-4-turbo: OpenAI 的最新模型，速度更快</li>
-     *   <li>claude-3-sonnet: Anthropic 的 Claude 模型</li>
-     *   <li>gemini-pro: Google 的 Gemini 模型</li>
-     * </ul>
-     *
      * @return 推荐的模型列表（作为参考）
      */
     @NotNull
@@ -104,13 +116,6 @@ public class CustomProvider extends AICompatibleProvider {
      * 获取默认模型
      *
      * <p>返回推荐的默认模型。
-     * 选择 gpt-3.5-turbo 作为默认模型，因为：
-     * <ul>
-     *   <li>性能稳定，响应速度快</li>
-     *   <li>成本相对较低</li>
-     *   <li>广泛支持，兼容性好</li>
-     *   <li>适合大多数文档生成任务</li>
-     * </ul>
      *
      * @return 默认模型名称
      */

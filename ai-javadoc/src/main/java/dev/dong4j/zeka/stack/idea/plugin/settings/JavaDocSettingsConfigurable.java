@@ -357,7 +357,6 @@ public class JavaDocSettingsConfigurable implements Configurable {
      *   <li>超时时间：1000-300000 毫秒</li>
      *   <li>温度参数：0.0-2.0</li>
      *   <li>最大 Token：100-10000</li>
-     *   <li>并发数：1-10</li>
      * </ul>
      *
      * @param settings 面板中的配置
@@ -398,11 +397,7 @@ public class JavaDocSettingsConfigurable implements Configurable {
             return false;
         }
 
-        if (settings.maxTokens < 100 || settings.maxTokens > 10000) {
-            return false;
-        }
-
-        return settings.performanceMode || !settings.performanceMode;
+        return settings.maxTokens >= 100 && settings.maxTokens <= 10000;
     }
 }
 

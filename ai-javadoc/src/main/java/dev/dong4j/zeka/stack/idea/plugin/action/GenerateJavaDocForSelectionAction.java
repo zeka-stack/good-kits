@@ -39,6 +39,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GenerateJavaDocForSelectionAction extends AnAction {
 
+    /**
+     * 处理动作事件，用于为选中的文件或目录生成 JavaDoc 注释
+     * <p>
+     * 该方法首先获取当前项目和选中的文件列表，若项目或文件为空则直接返回。
+     * 然后收集所有需要生成 JavaDoc 的任务，检查任务是否为空，若为空则返回。
+     * 若任务数量较多，会弹出确认对话框，用户确认后才继续执行。
+     * 最后调用文档生成服务，生成 JavaDoc 并显示完成信息。
+     *
+     * @param e 动作事件对象，包含项目和选中的文件信息
+     */
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
         Project project = e.getProject();
@@ -88,12 +98,26 @@ public class GenerateJavaDocForSelectionAction extends AnAction {
         });
     }
 
+    /**
+     * 获取用于更新操作的线程类型
+     * <p>
+     * 返回在后台线程中执行更新操作的线程类型，以避免阻塞事件调度线程（EDT）。
+     *
+     * @return 更新操作所使用的线程类型
+     */
     @Override
     public @NotNull ActionUpdateThread getActionUpdateThread() {
         // 在后台线程中执行 update，避免阻塞 EDT
         return ActionUpdateThread.BGT;
     }
 
+    /**
+     * 更新操作的呈现信息，根据选中的文件状态启用或禁用操作，并设置操作文本和描述
+     * <p>
+     * 该方法用于在用户执行操作前，根据当前选中的文件状态更新操作的可用性、文本和描述信息。
+     *
+     * @param e 事件对象，包含操作上下文信息
+     */
     @Override
     public void update(@NotNull AnActionEvent e) {
         VirtualFile[] files = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY);
@@ -103,6 +127,14 @@ public class GenerateJavaDocForSelectionAction extends AnAction {
         e.getPresentation().setDescription(JavaDocBundle.message("action.generate.javadoc.selection.description"));
     }
 
+    /**
+     * 判断给定的文件数组中是否存在Java文件
+     * <p>
+     * 遍历文件数组，检查每个文件是否为目录或Java文件，若存在则返回true
+     *
+     * @param files 文件数组
+     * @return 如果存在Java文件则返回true，否则返回false
+     */
     private boolean hasJavaFiles(VirtualFile[] files) {
         for (VirtualFile file : files) {
             if (file.isDirectory() || isJavaFile(file)) {
@@ -112,10 +144,26 @@ public class GenerateJavaDocForSelectionAction extends AnAction {
         return false;
     }
 
+    /**
+     * 判断给定文件是否为Java文件
+     * <p>
+     * 通过检查文件的扩展名是否为"java"（不区分大小写）来判断文件类型
+     *
+     * @param file 要判断的文件对象
+     * @return 如果文件是Java文件，返回true；否则返回false
+     */
     private boolean isJavaFile(VirtualFile file) {
         return "java".equalsIgnoreCase(file.getExtension());
     }
 
+    /**
+     * 显示文档生成完成的通知消息
+     * <p>
+     * 该方法用于在文档生成完成后，向用户显示一条通知消息，提示生成任务的完成情况。
+     *
+     * @param project 项目对象，用于通知的上下文
+     * @param stats   任务统计信息，包含完成、失败和跳过任务的数量
+     */
     private void showCompletionMessage(Project project, TaskExecutor.TaskStatistics stats) {
         ApplicationManager.getApplication().invokeLater(() -> {
             String content = JavaDocBundle.message("notification.target.completion.format",

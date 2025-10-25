@@ -55,14 +55,34 @@ import dev.dong4j.zeka.stack.idea.plugin.task.DocumentationTask;
 @SuppressWarnings( {"LoggingSimilarMessage", "D", "DuplicatedCode"})
 public abstract class AICompatibleProvider implements AIServiceProvider {
 
+    /** AI 兼容提供者日志记录器 */
     private static final Logger LOG = Logger.getInstance(AICompatibleProvider.class);
 
+    /** 用户界面设置状态对象 */
     protected final SettingsState settings;
 
+    /**
+     * 初始化 AI 兼容提供者
+     * <p>
+     * 使用给定的设置状态初始化 AI 兼容提供者，用于后续 AI 相关功能的配置和调用。
+     *
+     * @param settings 设置状态对象，用于配置 AI 兼容提供者的相关参数
+     */
     protected AICompatibleProvider(SettingsState settings) {
         this.settings = settings;
     }
 
+    /**
+     * 生成文档注释内容
+     * <p>
+     * 根据提供的代码、任务类型和语言生成对应的文档注释。该方法会尝试多次调用AI服务生成文档，若失败则抛出异常。
+     *
+     * @param code     代码内容
+     * @param type     文档生成任务类型
+     * @param language 文档语言
+     * @return 生成的文档注释内容
+     * @throws AIServiceException 当AI服务调用失败时抛出
+     */
     @SuppressWarnings("D")
     @Override
     @NotNull
@@ -199,9 +219,31 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      */
     @FunctionalInterface
     private interface ResponseParser {
+        /**
+         * 解析响应内容并返回解析结果
+         * <p>
+         * 将接收到的响应内容进行解析，提取所需数据并返回
+         *
+         * @param responseBody 响应内容字符串
+         * @return 解析后的结果
+         * @throws AIServiceException 如果解析过程中发生错误
+         */
         String parse(String responseBody) throws AIServiceException;
     }
 
+    /**
+     * 向指定的API端点发送带有请求体的HTTP请求，并解析返回的响应内容
+     * <p>
+     * 该方法用于构建并发送HTTP POST请求，处理API Key验证、请求日志记录、超时设置、响应解析等操作。
+     * 如果请求成功且响应内容非空，则返回解析后的结果；否则抛出相应的异常。
+     *
+     * @param body           请求体，使用JsonObject格式
+     * @param logPrefix      日志前缀，用于区分不同请求的日志信息
+     * @param promptLength   提示内容长度，用于日志记录
+     * @param responseParser 响应解析器，用于解析服务器返回的响应内容
+     * @return 解析后的响应结果字符串
+     * @throws AIServiceException 如果发生配置错误、网络错误、响应无效或未知错误
+     */
     private String sendRequestWithBody(JsonObject body, String logPrefix, int promptLength,
                                        ResponseParser responseParser) throws AIServiceException {
         try {
@@ -649,6 +691,13 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
     }
 
 
+    /**
+     * 验证配置是否有效
+     * <p>
+     * 该方法用于验证当前配置是否正确，包括网络连接、服务响应等。如果验证成功，返回成功结果；如果失败，返回失败结果并附带错误信息。
+     *
+     * @return 验证结果，包含成功或失败的状态及对应信息
+     */
     @NotNull
     @Override
     public ValidationResult validateConfiguration() {
