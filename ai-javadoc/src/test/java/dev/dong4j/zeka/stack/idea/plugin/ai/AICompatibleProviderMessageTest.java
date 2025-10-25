@@ -1,7 +1,8 @@
 package dev.dong4j.zeka.stack.idea.plugin.ai;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,31 +44,31 @@ class AICompatibleProviderMessageTest {
     void testBuildRequestBodyStructure() {
         String testPrompt = "请为以下代码生成 JavaDoc 注释：\n\npublic class TestClass {\n    private String name;\n}";
 
-        JSONObject requestBody = provider.buildRequestBody(testPrompt);
+        JsonObject requestBody = provider.buildRequestBody(testPrompt);
 
         // 验证基本结构
         assertNotNull(requestBody);
-        assertEquals("gpt-3.5-turbo", requestBody.getString("model"));
-        assertEquals(0.1, requestBody.getDouble("temperature"));
-        assertEquals(1000, requestBody.getInt("max_tokens"));
+        assertEquals("gpt-3.5-turbo", requestBody.get("model").getAsString());
+        assertEquals(0.1, requestBody.get("temperature").getAsDouble());
+        assertEquals(1000, requestBody.get("max_tokens").getAsInt());
 
         // 验证 messages 数组
-        JSONArray messages = requestBody.getJSONArray("messages");
+        JsonArray messages = requestBody.getAsJsonArray("messages");
         assertNotNull(messages);
-        assertEquals(2, messages.length(), "应该有 system 和 user 两个消息");
+        assertEquals(2, messages.size(), "应该有 system 和 user 两个消息");
 
         // 验证 system 消息
-        JSONObject systemMessage = messages.getJSONObject(0);
-        assertEquals("system", systemMessage.getString("role"));
-        String systemContent = systemMessage.getString("content");
+        JsonObject systemMessage = messages.get(0).getAsJsonObject();
+        assertEquals("system", systemMessage.get("role").getAsString());
+        String systemContent = systemMessage.get("content").getAsString();
         assertNotNull(systemContent);
         assertTrue(systemContent.contains("专业的 Java 开发工程师"));
         assertTrue(systemContent.contains("JavaDoc 注释"));
 
         // 验证 user 消息
-        JSONObject userMessage = messages.getJSONObject(1);
-        assertEquals("user", userMessage.getString("role"));
-        assertEquals(testPrompt, userMessage.getString("content"));
+        JsonObject userMessage = messages.get(1).getAsJsonObject();
+        assertEquals("user", userMessage.get("role").getAsString());
+        assertEquals(testPrompt, userMessage.get("content").getAsString());
     }
 
     @Test

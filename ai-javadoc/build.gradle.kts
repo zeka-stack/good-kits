@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "dev.dong4j"
-version = "2.0.0"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -22,7 +22,7 @@ intellijPlatform {
 
         ideaVersion {
             sinceBuild = "223"  // 2022.3
-            untilBuild = "243.*"  // 2024.3.x (最新)
+            untilBuild = "999.*" // 支持所有未来版本
         }
     }
 }
@@ -42,9 +42,6 @@ dependencies {
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
     }
 
-    // 其他依赖
-    // implementation("com.google.code.gson:gson:2.10.1")
-    // implementation("org.json:json:20230227")  // 已替换为 Gson
     compileOnly("org.projectlombok:lombok:1.18.26")
     annotationProcessor("org.projectlombok:lombok:1.18.26")
 

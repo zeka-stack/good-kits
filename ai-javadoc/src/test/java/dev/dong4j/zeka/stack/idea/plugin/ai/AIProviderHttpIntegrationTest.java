@@ -1,6 +1,8 @@
 package dev.dong4j.zeka.stack.idea.plugin.ai;
 
-import org.json.JSONObject;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -132,10 +134,10 @@ public class AIProviderHttpIntegrationTest {
         String requestBody = request.getBody().readUtf8();
         System.out.println("Request body: " + requestBody);
 
-        JSONObject requestJson = new JSONObject(requestBody);
-        assertThat(requestJson.getString("model")).isEqualTo("qwen-max");
-        assertThat(requestJson.getDouble("temperature")).isEqualTo(0.1);
-        assertThat(requestJson.getInt("max_tokens")).isEqualTo(1000);
+        JsonObject requestJson = JsonParser.parseString(requestBody).getAsJsonObject();
+        assertThat(requestJson.get("model").getAsString()).isEqualTo("qwen-max");
+        assertThat(requestJson.get("temperature").getAsDouble()).isEqualTo(0.1);
+        assertThat(requestJson.get("max_tokens").getAsInt()).isEqualTo(1000);
         assertThat(requestJson.has("messages")).isTrue();
     }
 
@@ -534,14 +536,14 @@ public class AIProviderHttpIntegrationTest {
         System.out.println("Body: " + requestBody);
 
         // 解析并验证请求体
-        JSONObject requestJson = new JSONObject(requestBody);
-        assertThat(requestJson.getString("model")).isEqualTo("qwen-max");
+        JsonObject requestJson = JsonParser.parseString(requestBody).getAsJsonObject();
+        assertThat(requestJson.get("model").getAsString()).isEqualTo("qwen-max");
         assertThat(requestJson.has("messages")).isTrue();
 
         // 验证消息内容包含我们的代码
-        String messageContent = requestJson.getJSONArray("messages")
-            .getJSONObject(0)
-            .getString("content");
+        String messageContent = requestJson.getAsJsonArray("messages")
+            .get(0).getAsJsonObject()
+            .get("content").getAsString();
         assertThat(messageContent).contains("UserService");
     }
 }
