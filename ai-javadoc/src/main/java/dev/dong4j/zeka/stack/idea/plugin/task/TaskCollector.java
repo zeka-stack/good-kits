@@ -203,7 +203,7 @@ public class TaskCollector {
 
         psiFile.accept(new JavaRecursiveElementVisitor() {
             @Override
-            public void visitClass(PsiClass aClass) {
+            public void visitClass(@NotNull PsiClass aClass) {
                 super.visitClass(aClass);
 
                 if (settings.generateForClass && shouldGenerateForElement(aClass)) {
@@ -390,7 +390,7 @@ public class TaskCollector {
      */
     @NotNull
     private String optimizeClassCode(@NotNull String originalCode) {
-        if (originalCode == null || originalCode.trim().isEmpty()) {
+        if (originalCode.trim().isEmpty()) {
             return originalCode;
         }
 

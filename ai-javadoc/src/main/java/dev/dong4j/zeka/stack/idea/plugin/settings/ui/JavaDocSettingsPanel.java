@@ -82,8 +82,6 @@ public class JavaDocSettingsPanel {
     private JBCheckBox verboseLoggingCheckBox;
     private JBCheckBox performanceModeCheckBox;
 
-    // Prompt 配置 - Tab 页
-    private JBTabbedPane promptTabbedPane;
     public JTextArea systemPromptTextArea;
     public JTextArea classPromptTextArea;
     public JTextArea methodPromptTextArea;
@@ -157,11 +155,12 @@ public class JavaDocSettingsPanel {
             .addSeparator(10)
 
             .addComponent(new JBLabel(JavaDocBundle.message("settings.generation.options")))
-            .addComponent(generateForClassCheckBox)
-            .addComponent(generateForMethodCheckBox)
-            .addComponent(generateForFieldCheckBox)
-            .addComponent(skipExistingCheckBox)
-            .addComponent(optimizeClassCodeCheckBox)
+            .addComponent(createCheckBoxWithHint(generateForClassCheckBox, "settings.generate.for.class.hint"))
+            .addComponent(createCheckBoxWithHint(generateForMethodCheckBox, "settings.generate.for.method.hint"))
+            .addComponent(createCheckBoxWithHint(generateForFieldCheckBox, "settings.generate.for.field.hint"))
+            .addComponent(createCheckBoxWithHint(skipExistingCheckBox, "settings.skip.existing.hint"))
+            .addComponent(createCheckBoxWithHint(optimizeClassCodeCheckBox, "settings.optimize.class.code.hint"))
+
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.class.code.lines")), maxClassCodeLinesSpinner)
             .addSeparator(10)
 
@@ -173,8 +172,7 @@ public class JavaDocSettingsPanel {
             .addComponent(new JBLabel(JavaDocBundle.message("settings.model.config")))
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.tokens")),
                                  createAdvancedConfigPanel(maxTokensSpinner,
-                                                           "settings.max" +
-                                                           ".tokens.hint"))
+                                                           "settings.max.tokens.hint"))
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.temperature")),
                                  createAdvancedConfigPanel(temperatureSpinner
                                      , "settings.temperature.hint"))
@@ -192,8 +190,7 @@ public class JavaDocSettingsPanel {
             .addComponent(new JBLabel(JavaDocBundle.message("settings.advanced.config")))
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.max.retries")),
                                  createAdvancedConfigPanel(maxRetriesSpinner,
-                                                           "settings.max" +
-                                                           ".retries.hint"))
+                                                           "settings.max.retries.hint"))
             .addLabeledComponent(new JBLabel(JavaDocBundle.message("settings.timeout")),
                                  createAdvancedConfigPanel(timeoutSpinner,
                                                            "settings.timeout.hint"))
@@ -270,7 +267,8 @@ public class JavaDocSettingsPanel {
     }
 
     private JBTabbedPane createPromptTabbedPane() {
-        promptTabbedPane = new JBTabbedPane();
+        // Prompt 配置 - Tab 页
+        JBTabbedPane promptTabbedPane = new JBTabbedPane();
         promptTabbedPane.setPreferredSize(new Dimension(600, 200));
 
         // 创建各个 Tab 页

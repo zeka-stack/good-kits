@@ -36,6 +36,7 @@ import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceFactory;
 import dev.dong4j.zeka.stack.idea.plugin.ai.AIServiceProvider;
 import dev.dong4j.zeka.stack.idea.plugin.settings.SettingsState;
 import dev.dong4j.zeka.stack.idea.plugin.util.NotificationUtil;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -91,6 +92,7 @@ public class TaskExecutor {
      * 提供商统计信息
      */
     public static class ProviderStatistics {
+        @Getter
         private final String providerName;
         private final AtomicInteger completedCount = new AtomicInteger(0);
         private final AtomicInteger failedCount = new AtomicInteger(0);
@@ -101,10 +103,6 @@ public class TaskExecutor {
         public ProviderStatistics(String providerName) {
             this.providerName = providerName;
             this.startTime = System.currentTimeMillis();
-        }
-
-        public String getProviderName() {
-            return providerName;
         }
 
         public int getCompletedCount() {
@@ -277,8 +275,7 @@ public class TaskExecutor {
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             AtomicInteger taskIndex = new AtomicInteger(0);
 
-            for (int i = 0; i < availableProviders.size(); i++) {
-                AIServiceProvider provider = availableProviders.get(i);
+            for (AIServiceProvider provider : availableProviders) {
                 String providerName = provider.getProviderName();
                 ProviderStatistics stats = providerStats.get(providerName);
 
@@ -491,17 +488,6 @@ public class TaskExecutor {
             // 创建自定义对话框
             javax.swing.JDialog dialog = new javax.swing.JDialog((java.awt.Frame) null, "性能模式处理完成", true);
             dialog.setDefaultCloseOperation(javax.swing.JDialog.DISPOSE_ON_CLOSE);
-
-            // 设置插件图标
-            try {
-                javax.swing.ImageIcon icon = new javax.swing.ImageIcon(
-                    getClass().getResource("/META-INF/pluginIcon.svg")
-                );
-                dialog.setIconImage(icon.getImage());
-            } catch (Exception e) {
-                // 如果图标加载失败，使用默认图标
-                log.debug("无法加载插件图标: {}", e.getMessage());
-            }
 
             // 创建HTML内容面板
             javax.swing.JEditorPane editorPane = new javax.swing.JEditorPane();
