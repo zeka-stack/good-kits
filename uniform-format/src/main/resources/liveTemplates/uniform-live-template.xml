@@ -1,0 +1,65 @@
+<templateSet group="Uniform">
+    <template name="todo" value="todo-$author$ : ($date$) [$SELECTION$]" description="标记待处理的地方" toReformat="true"
+              toShortenFQNames="true">
+        <variable name="author" expression="user()" defaultValue="" alwaysStopAt="true"/>
+        <variable name="date" expression="date(&quot;Y.MM.d HH:mm&quot;)" defaultValue="" alwaysStopAt="true"/>
+        <context>
+            <option name="OTHER" value="true"/>
+        </context>
+    </template>
+    <template name="fix" value="fixme-$author$ : ($date$) [$SELECTION$]" description="标记需要被修复的地方" toReformat="true"
+              toShortenFQNames="true">
+        <variable name="author" expression="user()" defaultValue="" alwaysStopAt="true"/>
+        <variable name="date" expression="date(&quot;Y.MM.d HH:mm&quot;)" defaultValue="" alwaysStopAt="true"/>
+        <context>
+            <option name="CSS" value="true"/>
+            <option name="HTML" value="true"/>
+            <option name="JAVA_CODE" value="true"/>
+            <option name="JAVA_SCRIPT" value="true"/>
+            <option name="JSON" value="true"/>
+            <option name="JSP" value="true"/>
+        </context>
+    </template>
+    <template name="cd"
+              value="/**&#10; * &lt;p&gt;Company: Zeka Stack&lt;/p&gt;&#10; * &lt;p&gt;Description: $description$ &lt;/p&gt;&#10; *&#10; * @author $author$&#10; * @version x.x.x&#10; * @email &quot;mailto:$author$@gmail.com&quot;&#10; * @date $date$&#10; * @since x.x.x&#10; */"
+              description="快速生成类的 javadoc" toReformat="true" toShortenFQNames="true">
+        <variable name="description" expression="" defaultValue="" alwaysStopAt="true"/>
+        <variable name="author" expression="user()" defaultValue="" alwaysStopAt="true"/>
+        <variable name="date" expression="date(&quot;Y.MM.d HH:mm&quot;)" defaultValue="" alwaysStopAt="true"/>
+        <context>
+            <option name="CSS" value="true"/>
+            <option name="HTML" value="true"/>
+            <option name="JAVA_CODE" value="true"/>
+            <option name="JAVA_SCRIPT" value="true"/>
+            <option name="KOTLIN" value="true"/>
+        </context>
+    </template>
+    <template name="li" value="log.info($END$)" description="log.info()" toReformat="true" toShortenFQNames="true">
+        <context>
+            <option name="JAVA_CODE" value="true"/>
+        </context>
+    </template>
+    <template name="ld" value="log.debug($END$)" description="log.debug()" toReformat="true" toShortenFQNames="true">
+        <context>
+            <option name="JAVA_CODE" value="true"/>
+        </context>
+    </template>
+    <template name="lw" value="log.warn($END$)" description="log.warn()" toReformat="true" toShortenFQNames="true">
+        <context>
+            <option name="JAVA_CODE" value="true"/>
+        </context>
+    </template>
+    <template name="le" value="log.error(&quot;{}&quot;, $END$)" description="log.error()" toReformat="true" toShortenFQNames="true">
+        <context>
+            <option name="JAVA_CODE" value="true"/>
+        </context>
+    </template>
+    <template name="test" value="@Test&#10;void test_$NAME$(){&#10;    $SELECTION$&#10;}" description="快速生成单元测试方法"
+              toReformat="true"
+              toShortenFQNames="true">
+        <variable name="NAME" expression="" defaultValue="" alwaysStopAt="true"/>
+        <context>
+            <option name="JAVA_CODE" value="true"/>
+        </context>
+    </template>
+</templateSet>

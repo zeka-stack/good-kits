@@ -43,3 +43,4 @@ bin/
 docs/
 .intellijPlatform/
 *.jar
+.gradle/
