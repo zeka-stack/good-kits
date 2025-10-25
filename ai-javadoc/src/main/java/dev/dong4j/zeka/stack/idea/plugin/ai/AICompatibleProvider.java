@@ -1,10 +1,14 @@
 package dev.dong4j.zeka.stack.idea.plugin.ai;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.util.io.HttpRequests;
 
 import org.jetbrains.annotations.NotNull;
-import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -154,7 +158,7 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      * @see #parseResponse(String)
      */
     protected String sendRequest(String prompt) throws AIServiceException {
-        JSONObject body = buildRequestBody(prompt);
+        JsonObject body = buildRequestBody(prompt);
         return sendRequestWithBody(body, "AI Request", prompt.length(), this::parseResponse);
     }
 
@@ -185,7 +189,7 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      * @throws AIServiceException 当验证请求失败时抛出
      */
     protected String sendValidationRequest() throws AIServiceException {
-        JSONObject body = buildValidationRequestBody();
+        JsonObject body = buildValidationRequestBody();
         return sendRequestWithBody(body, "Validation Request", 0, this::parseValidationResponse);
     }
 
@@ -198,7 +202,7 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
         String parse(String responseBody) throws AIServiceException;
     }
 
-    private String sendRequestWithBody(JSONObject body, String logPrefix, int promptLength,
+    private String sendRequestWithBody(JsonObject body, String logPrefix, int promptLength,
                                        ResponseParser responseParser) throws AIServiceException {
         try {
             // 检查API Key配置
@@ -338,31 +342,37 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      * @return 构建好的 JSON 请求体
      * @see org.json.JSONObject
      */
-    protected JSONObject buildRequestBody(String prompt) {
+    protected JsonObject buildRequestBody(String prompt) {
         // 创建 system 消息
-        JSONObject systemMessage = new JSONObject();
-        systemMessage.put("role", "system");
-        systemMessage.put("content", getSystemPrompt());
+        JsonObject systemMessage = new JsonObject();
+        systemMessage.addProperty("role", "system");
+        systemMessage.addProperty("content", getSystemPrompt());
 
         // 创建 user 消息
-        JSONObject userMessage = new JSONObject();
-        userMessage.put("role", "user");
-        userMessage.put("content", prompt);
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", prompt);
 
-        JSONObject body = new JSONObject();
-        body.put("model", settings.modelName);
+        JsonObject body = new JsonObject();
+        body.addProperty("model", settings.modelName);
         // ollama 的参数
-        body.put("think", false);
+        body.addProperty("think", false);
         // openapi 兼容的参数
-        body.put("enable_thinking", false);
+        body.addProperty("enable_thinking", false);
         // 关闭流式输出
-        body.put("stream", false);
-        body.put("messages", new Object[] {systemMessage, userMessage});
-        body.put("temperature", settings.temperature);
-        body.put("max_tokens", settings.maxTokens);
-        body.put("top_p", settings.topP);
-        body.put("top_k", settings.topK);
-        body.put("presence_penalty", settings.presencePenalty);
+        body.addProperty("stream", false);
+
+        // 创建消息数组
+        JsonArray messagesArray = new JsonArray();
+        messagesArray.add(systemMessage);
+        messagesArray.add(userMessage);
+        body.add("messages", messagesArray);
+
+        body.addProperty("temperature", settings.temperature);
+        body.addProperty("max_tokens", settings.maxTokens);
+        body.addProperty("top_p", settings.topP);
+        body.addProperty("top_k", settings.topK);
+        body.addProperty("presence_penalty", settings.presencePenalty);
 
         return body;
     }
@@ -441,11 +451,11 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      */
     protected String parseResponse(String responseBody) throws AIServiceException {
         try {
-            JSONObject json = new JSONObject(responseBody);
-            String content = json.getJSONArray("choices")
-                .getJSONObject(0)
-                .getJSONObject("message")
-                .getString("content")
+            JsonObject json = JsonParser.parseString(responseBody).getAsJsonObject();
+            String content = json.getAsJsonArray("choices")
+                .get(0).getAsJsonObject()
+                .getAsJsonObject("message")
+                .get("content").getAsString()
                 .trim();
 
             // 过滤思考数据，只保留实际内容
@@ -489,13 +499,13 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      */
     protected String parseValidationResponse(String responseBody) throws AIServiceException {
         try {
-            JSONObject json = new JSONObject(responseBody);
+            JsonObject json = JsonParser.parseString(responseBody).getAsJsonObject();
 
             // 检查 usage.completion_tokens 是否存在且大于 0
             if (json.has("usage")) {
-                JSONObject usage = json.getJSONObject("usage");
+                JsonObject usage = json.getAsJsonObject("usage");
                 if (usage.has("completion_tokens")) {
-                    int completionTokens = usage.getInt("completion_tokens");
+                    int completionTokens = usage.get("completion_tokens").getAsInt();
                     if (completionTokens > 0) {
                         if (settings.verboseLogging) {
                             LOG.debug("Validation successful: completion_tokens=" + completionTokens);
@@ -506,7 +516,7 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
             }
 
             // 如果没有 usage 信息，尝试解析 choices 作为备选方案
-            if (json.has("choices") && !json.getJSONArray("choices").isEmpty()) {
+            if (json.has("choices") && json.getAsJsonArray("choices").size() > 0) {
                 if (settings.verboseLogging) {
                     LOG.debug("Validation successful: response has choices");
                 }
@@ -711,29 +721,35 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
      *
      * @return 构建好的验证请求体
      */
-    protected JSONObject buildValidationRequestBody() {
+    protected JsonObject buildValidationRequestBody() {
         // 创建 system 消息
-        JSONObject systemMessage = new JSONObject();
-        systemMessage.put("role", "system");
-        systemMessage.put("content", "i say ping, you say pong");
+        JsonObject systemMessage = new JsonObject();
+        systemMessage.addProperty("role", "system");
+        systemMessage.addProperty("content", "i say ping, you say pong");
 
         // 创建 user 消息
-        JSONObject userMessage = new JSONObject();
-        userMessage.put("role", "user");
-        userMessage.put("content", "ping");
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", "ping");
 
-        JSONObject body = new JSONObject();
-        body.put("model", settings.modelName);
+        JsonObject body = new JsonObject();
+        body.addProperty("model", settings.modelName);
         // ollama 的参数
-        body.put("think", false);
+        body.addProperty("think", false);
         // openapi 兼容的参数
-        body.put("enable_thinking", false);
+        body.addProperty("enable_thinking", false);
         // 关闭流式输出
-        body.put("stream", false);
-        body.put("messages", new Object[] {systemMessage, userMessage});
-        body.put("temperature", 0.1);
-        body.put("max_tokens", 32);
-        body.put("top_p", 0.9);
+        body.addProperty("stream", false);
+
+        // 创建消息数组
+        JsonArray messagesArray = new JsonArray();
+        messagesArray.add(systemMessage);
+        messagesArray.add(userMessage);
+        body.add("messages", messagesArray);
+
+        body.addProperty("temperature", 0.1);
+        body.addProperty("max_tokens", 32);
+        body.addProperty("top_p", 0.9);
         return body;
     }
 
@@ -886,13 +902,13 @@ public abstract class AICompatibleProvider implements AIServiceProvider {
         List<String> models = new ArrayList<>();
 
         try {
-            JSONObject json = new JSONObject(responseBody);
-            if (json.has("data") && json.get("data") instanceof org.json.JSONArray) {
-                org.json.JSONArray dataArray = json.getJSONArray("data");
-                for (int i = 0; i < dataArray.length(); i++) {
-                    JSONObject modelObj = dataArray.getJSONObject(i);
+            JsonObject json = JsonParser.parseString(responseBody).getAsJsonObject();
+            if (json.has("data") && json.get("data").isJsonArray()) {
+                JsonArray dataArray = json.getAsJsonArray("data");
+                for (JsonElement element : dataArray) {
+                    JsonObject modelObj = element.getAsJsonObject();
                     if (modelObj.has("id")) {
-                        String modelId = modelObj.getString("id");
+                        String modelId = modelObj.get("id").getAsString();
                         if (modelId != null && !modelId.trim().isEmpty()) {
                             models.add(modelId.trim());
                         }

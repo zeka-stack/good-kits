@@ -43,7 +43,8 @@ dependencies {
     }
 
     // 其他依赖
-    implementation("org.json:json:20230227")
+    // implementation("com.google.code.gson:gson:2.10.1")
+    // implementation("org.json:json:20230227")  // 已替换为 Gson
     compileOnly("org.projectlombok:lombok:1.18.26")
     annotationProcessor("org.projectlombok:lombok:1.18.26")
 

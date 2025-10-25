@@ -1,8 +1,11 @@
 package dev.dong4j.zeka.stack.idea.plugin.ai;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import org.jetbrains.annotations.NotNull;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -216,22 +219,22 @@ public class OllamaProvider extends AICompatibleProvider {
         List<String> models = new ArrayList<>();
 
         try {
-            JSONObject json = new JSONObject(responseBody);
+            JsonObject json = JsonParser.parseString(responseBody).getAsJsonObject();
 
             // 尝试 Ollama 格式 (models 字段)
-            if (json.has("models") && json.get("models") instanceof JSONArray) {
-                JSONArray modelsArray = json.getJSONArray("models");
-                for (int i = 0; i < modelsArray.length(); i++) {
-                    JSONObject modelObj = modelsArray.getJSONObject(i);
+            if (json.has("models") && json.get("models").isJsonArray()) {
+                JsonArray modelsArray = json.getAsJsonArray("models");
+                for (JsonElement element : modelsArray) {
+                    JsonObject modelObj = element.getAsJsonObject();
                     String modelName = null;
 
                     // 优先使用 name 字段
                     if (modelObj.has("name")) {
-                        modelName = modelObj.getString("name");
+                        modelName = modelObj.get("name").getAsString();
                     }
                     // 如果没有 name 字段，使用 model 字段
                     else if (modelObj.has("model")) {
-                        modelName = modelObj.getString("model");
+                        modelName = modelObj.get("model").getAsString();
                     }
 
                     if (modelName != null && !modelName.trim().isEmpty()) {
@@ -240,7 +243,7 @@ public class OllamaProvider extends AICompatibleProvider {
                 }
             }
             // 如果 Ollama 格式解析失败，尝试标准格式
-            else if (json.has("data") && json.get("data") instanceof JSONArray) {
+            else if (json.has("data") && json.get("data").isJsonArray()) {
                 return super.parseModelsResponse(responseBody);
             }
 
